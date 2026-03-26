@@ -9,6 +9,7 @@ from models.models import listar_canchas, insertar_reserva, hay_superposicion
 class ReservasWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
+        self.withdraw()
         self.title("Nueva Reserva")
         width, height = 520, 550
         self.geometry(f"{width}x{height}")
@@ -85,6 +86,8 @@ class ReservasWindow(ctk.CTkToplevel):
             fg_color="#A3F843", hover_color="#91E03A", text_color="#000000",
             font=("Arial", 13, "bold"), corner_radius=10, width=408, height=42
         ).pack(padx=22, pady=(18, 22))
+
+        self.deiconify()
 
     def guardar(self):
         cliente = self.entry_cliente.get().strip()

@@ -9,6 +9,7 @@ from datetime import datetime
 class CalendarioWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
+        self.withdraw()
         self.title("Calendario de Reservas")
         width, height = 860, 530
         self.geometry(f"{width}x{height}")
@@ -75,6 +76,7 @@ class CalendarioWindow(ctk.CTkToplevel):
 
         self.calendar.bind("<<CalendarSelected>>", lambda e: self.mostrar_reservas())
         self.mostrar_reservas()
+        self.deiconify()
 
     def toggle_orden(self):
         self.orden_por_deporte = not self.orden_por_deporte

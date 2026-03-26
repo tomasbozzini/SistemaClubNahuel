@@ -8,6 +8,7 @@ from models.models import listar_reservas, eliminar_reserva
 class VerReservasWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
+        self.withdraw()
         self.title("Ver Reservas")
         width, height = 880, 530
         self.geometry(f"{width}x{height}")
@@ -62,6 +63,7 @@ class VerReservasWindow(ctk.CTkToplevel):
         ).pack(pady=(0, 14))
 
         self.cargar_reservas()
+        self.deiconify()
 
     def _aplicar_estilo_tree(self):
         style = ttk.Style()
