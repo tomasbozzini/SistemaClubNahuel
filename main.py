@@ -1,17 +1,15 @@
 # main.py
 import os
 from models.models import crear_tablas
-from ui.main_window import MainWindow
 
-# Crear carpeta data si no existe
+# Crear carpeta data si no existe (SQLite local)
 if not os.path.exists("data"):
     os.makedirs("data")
 
-# Crear tablas si no existen
+# Crear tablas SQLite si no existen
 crear_tablas()
 
-# Iniciar app
 if __name__ == "__main__":
-    app = MainWindow()
+    from ui.login_window import LoginWindow
+    app = LoginWindow()
     app.mainloop()
-

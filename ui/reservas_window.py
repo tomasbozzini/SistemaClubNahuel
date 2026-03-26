@@ -119,4 +119,5 @@ class ReservasWindow(ctk.CTkToplevel):
 
         reserva_id = insertar_reserva(cliente, cancha_id, fecha, hora, obs)
         messagebox.showinfo("Reserva guardada", f"Reserva #{reserva_id} registrada correctamente.")
+        self.event_generate("<<ReservaGuardada>>", when="tail")
         self.destroy()
