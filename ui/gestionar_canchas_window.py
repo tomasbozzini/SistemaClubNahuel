@@ -1,35 +1,39 @@
 # ui/gestionar_canchas_window.py
 import customtkinter as ctk
 from tkinter import ttk, messagebox
-from models.models import listar_canchas, insertar_cancha, eliminar_cancha, existe_cancha
+from auth.session import SessionManager
+from models.canchas_service import listar_canchas, insertar_cancha, eliminar_cancha, existe_cancha
 
 
 class GestionarCanchasWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
+
+        if not SessionManager.esta_logueado():
+            self.after(0, self.destroy)
+            return
+
         self.title("Gestionar Canchas")
         width, height = 700, 630
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        x = (self.winfo_screenwidth() // 2) - (width  // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
         self.transient(parent)
         self.resizable(False, False)
         self.configure(fg_color="#121212")
 
-        # Barra superior
         ctk.CTkFrame(self, height=4, fg_color="#A3F843", corner_radius=0).pack(fill="x")
 
-        # Header
         ctk.CTkLabel(self, text="GESTIONAR CANCHAS",
             font=("Arial Black", 20, "bold"), text_color="#FFFFFF").pack(pady=(18, 0))
         ctk.CTkLabel(self, text="Agregá o eliminá canchas del club",
             font=("Arial", 11), text_color="#A3F843").pack(pady=(2, 0))
-        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(fill="x", padx=36, pady=(12, 0))
+        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(
+            fill="x", padx=36, pady=(12, 0))
 
-        # Card agregar
         card_agregar = ctk.CTkFrame(self, fg_color="#1A1A1A", corner_radius=14)
         card_agregar.pack(padx=36, pady=(16, 8), fill="x")
 
@@ -62,19 +66,18 @@ class GestionarCanchasWindow(ctk.CTkToplevel):
             font=("Arial", 12, "bold"), corner_radius=8, width=110, height=38
         ).pack(side="left", anchor="s")
 
-        # Card listado
         card_lista = ctk.CTkFrame(self, fg_color="#1A1A1A", corner_radius=14)
         card_lista.pack(padx=36, pady=(0, 20), fill="both", expand=True)
 
         ctk.CTkLabel(card_lista, text="CANCHAS REGISTRADAS",
-            font=("Arial", 10, "bold"), text_color="#777777").pack(anchor="w", padx=20, pady=(14, 6))
+            font=("Arial", 10, "bold"), text_color="#777777").pack(
+            anchor="w", padx=20, pady=(14, 6))
 
         self._aplicar_estilo_tree()
 
         tree_frame = ctk.CTkFrame(card_lista, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=12)
 
-        # Mostramos las 4 columnas incluyendo el estado actual de la cancha
         cols = ("ID", "Nombre", "Tipo", "Estado")
         self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings",
             style="Club.Treeview", height=8)
@@ -105,23 +108,18 @@ class GestionarCanchasWindow(ctk.CTkToplevel):
         style.configure("Club.Treeview",
             background="#1A1A1A", foreground="#CCCCCC",
             fieldbackground="#1A1A1A", rowheight=32, borderwidth=0,
-            font=("Arial", 11)
-        )
+            font=("Arial", 11))
         style.configure("Club.Treeview.Heading",
             background="#212121", foreground="#A3F843",
-            font=("Arial", 11, "bold"), relief="flat"
-        )
+            font=("Arial", 11, "bold"), relief="flat")
         style.map("Club.Treeview",
             background=[("selected", "#2C2C2C")],
-            foreground=[("selected", "#A3F843")]
-        )
+            foreground=[("selected", "#A3F843")])
         style.map("Club.Treeview.Heading",
-            background=[("active", "#2A2A2A"), ("!active", "#212121")]
-        )
+            background=[("active", "#2A2A2A"), ("!active", "#212121")])
         style.configure("Club.Vertical.TScrollbar",
             background="#2A2A2A", troughcolor="#1A1A1A",
-            arrowcolor="#666666", borderwidth=0
-        )
+            arrowcolor="#666666", borderwidth=0)
 
     def cargar_canchas(self):
         for item in self.tree.get_children():
@@ -131,7 +129,7 @@ class GestionarCanchasWindow(ctk.CTkToplevel):
 
     def agregar_cancha(self):
         nombre = self.entry_nombre.get().strip()
-        tipo = self.combo_tipo.get().strip()
+        tipo   = self.combo_tipo.get().strip()
         if not nombre or not tipo:
             messagebox.showwarning("Error", "Completá todos los campos.")
             return
@@ -147,7 +145,7 @@ class GestionarCanchasWindow(ctk.CTkToplevel):
         if not seleccion:
             messagebox.showwarning("Atención", "Seleccioná una cancha para eliminar.")
             return
-        cancha = self.tree.item(seleccion[0], "values")
+        cancha    = self.tree.item(seleccion[0], "values")
         cancha_id, nombre = cancha[0], cancha[1]
         if messagebox.askyesno("Confirmar", f"¿Eliminar la cancha '{nombre}'?"):
             eliminar_cancha(cancha_id)

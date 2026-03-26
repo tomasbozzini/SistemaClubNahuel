@@ -2,40 +2,43 @@
 import customtkinter as ctk
 from tkcalendar import Calendar
 from tkinter import END
-from models.models import listar_reservas
 from datetime import datetime
+from auth.session import SessionManager
+from models.reservas_service import listar_reservas
 
 
 class CalendarioWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
+
+        if not SessionManager.esta_logueado():
+            self.after(0, self.destroy)
+            return
+
         self.title("Calendario de Reservas")
         width, height = 860, 530
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        x = (self.winfo_screenwidth() // 2) - (width  // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
         self.resizable(False, False)
         self.transient(parent)
         self.configure(fg_color="#121212")
 
-        # Barra superior
         ctk.CTkFrame(self, height=4, fg_color="#A3F843", corner_radius=0).pack(fill="x")
 
-        # Header
         ctk.CTkLabel(self, text="CALENDARIO DE RESERVAS",
             font=("Arial Black", 20, "bold"), text_color="#FFFFFF").pack(pady=(18, 0))
         ctk.CTkLabel(self, text="Seleccioná un día para ver los turnos",
             font=("Arial", 11), text_color="#A3F843").pack(pady=(2, 0))
-        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(fill="x", padx=32, pady=(12, 0))
+        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(
+            fill="x", padx=32, pady=(12, 0))
 
-        # Body: columna izquierda (calendario) + columna derecha (lista)
         body = ctk.CTkFrame(self, fg_color="transparent")
         body.pack(padx=32, pady=14, fill="both", expand=True)
 
-        # --- Izquierda: calendario + botón ordenar ---
         left = ctk.CTkFrame(body, fg_color="#1A1A1A", corner_radius=14)
         left.pack(side="left", fill="y", padx=(0, 12))
 
@@ -57,7 +60,6 @@ class CalendarioWindow(ctk.CTkToplevel):
             corner_radius=8, height=34, font=("Arial", 11))
         self.btn_ordenar.pack(padx=14, pady=(0, 14), fill="x")
 
-        # --- Derecha: fecha seleccionada + lista de reservas ---
         right = ctk.CTkFrame(body, fg_color="#1A1A1A", corner_radius=14)
         right.pack(side="left", fill="both", expand=True)
 
@@ -86,6 +88,7 @@ class CalendarioWindow(ctk.CTkToplevel):
         self.mostrar_reservas()
 
     def mostrar_reservas(self):
+        # listar_reservas() → (id, cliente, cancha_nombre, tipo, fecha_str, hora, notas)
         fecha = self.calendar.get_date()
         self.lbl_fecha_sel.configure(text=fecha)
 
