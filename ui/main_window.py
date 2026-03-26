@@ -2,23 +2,28 @@
 import customtkinter as ctk
 from customtkinter import CTkImage
 from PIL import Image
+from auth.session import SessionManager
 from ui.reservas_window import ReservasWindow
 from ui.ver_reservas_window import VerReservasWindow
 from ui.gestionar_canchas_window import GestionarCanchasWindow
 from ui.calendario_reservas_window import CalendarioWindow
 from sync.poller import ReservasPoller, EventoActualizacion, EventoError, EventoReconexion
 
-POLL_CHECK_MS = 500   # cada cuántos ms se drena la cola del poller en el hilo UI
+POLL_CHECK_MS = 500
 
 
 class MainWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
-        self.title("Sistema de Reservas - Club Nahuel")
-        width, height = 900, 760
-        self.geometry(f"{width}x{height}")
 
+        if not SessionManager.esta_logueado():
+            self.after(0, self._volver_login)
+            return
+
+        self.title("Sistema de Reservas - Club Nahuel")
+        width, height = 900, 780
+        self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
@@ -26,17 +31,29 @@ class MainWindow(ctk.CTkToplevel):
         self.resizable(False, False)
         self.configure(fg_color="#121212")
 
-        # Referencias a sub-ventanas abiertas (para refrescarlas con sync)
         self._ventana_ver: VerReservasWindow | None = None
 
-        # Limpieza periódica de reservas expiradas (SQLite local)
         self.limpiar_reservas_periodicamente()
+        self._build_ui()
+        self._build_sync_bar()
 
-        # ── UI ──────────────────────────────────────────────────────────────
+        self._poller = ReservasPoller()
+        self._poller.iniciar()
+        self._procesar_cola_sync()
+
+        self.protocol("WM_DELETE_WINDOW", self._cerrar)
+        self.deiconify()
+
+    # ── UI ───────────────────────────────────────────────────────────────────
+
+    def _build_ui(self):
+        usuario = SessionManager.get_usuario_actual()
+
         ctk.CTkFrame(self, height=5, fg_color="#A3F843", corner_radius=0).pack(fill="x")
 
+        # Header
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.pack(pady=(24, 8))
+        header_frame.pack(pady=(20, 8))
 
         logo_path = "assets/logoclubnahuel.png"
         logo_img = CTkImage(
@@ -54,39 +71,47 @@ class MainWindow(ctk.CTkToplevel):
             font=("Arial", 11), text_color="#A3F843"
         ).pack(pady=(4, 0))
 
+        # Chip de usuario logueado
+        rol_color = "#A3F843" if usuario.rol == "admin" else "#5599FF"
+        chip = ctk.CTkFrame(header_frame, fg_color="#1A1A1A", corner_radius=20)
+        chip.pack(pady=(10, 0))
+        ctk.CTkLabel(
+            chip,
+            text=f"  {usuario.nombre}  ·  {usuario.rol.upper()}  ",
+            font=("Arial", 11, "bold"), text_color=rol_color
+        ).pack(padx=8, pady=4)
+
         ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(
-            fill="x", padx=50, pady=(18, 0)
-        )
+            fill="x", padx=50, pady=(16, 0))
 
+        # Cards
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
-        cards_frame.pack(pady=24)
-
+        cards_frame.pack(pady=22)
         self._crear_card(cards_frame, "NUEVA RESERVA",  "Registrá un turno en la cancha", self.abrir_registrar,         0, 0)
         self._crear_card(cards_frame, "VER RESERVAS",   "Listado completo de turnos",      self.abrir_ver,               0, 1)
         self._crear_card(cards_frame, "CALENDARIO",     "Vista mensual de reservas",        self.abrir_calendario,        1, 0)
         self._crear_card(cards_frame, "CANCHAS",        "Gestioná las canchas del club",    self.abrir_gestionar_canchas, 1, 1)
 
         ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(
-            fill="x", padx=50, pady=(10, 0)
-        )
+            fill="x", padx=50, pady=(8, 0))
+
+        # Botones de acción
+        botones = ctk.CTkFrame(self, fg_color="transparent")
+        botones.pack(pady=12)
 
         ctk.CTkButton(
-            self, text="SALIR", command=self._cerrar,
+            botones, text="CERRAR SESIÓN", command=self._cerrar_sesion,
+            fg_color="transparent", hover_color="#1E1E1E",
+            text_color="#FFA500", border_color="#FFA500", border_width=2,
+            corner_radius=8, width=160, height=38, font=("Arial", 12, "bold")
+        ).pack(side="left", padx=8)
+
+        ctk.CTkButton(
+            botones, text="SALIR", command=self._cerrar,
             fg_color="transparent", hover_color="#1E1E1E",
             text_color="#FF5C5C", border_color="#FF5C5C", border_width=2,
-            corner_radius=8, width=150, height=38, font=("Arial", 12, "bold")
-        ).pack(pady=14)
-
-        # ── Barra de sincronización ──────────────────────────────────────────
-        self._build_sync_bar()
-
-        # ── Arrancar poller ──────────────────────────────────────────────────
-        self._poller = ReservasPoller()
-        self._poller.iniciar()
-        self._procesar_cola_sync()   # arranca el loop de drenado
-
-        self.protocol("WM_DELETE_WINDOW", self._cerrar)
-        self.deiconify()
+            corner_radius=8, width=130, height=38, font=("Arial", 12, "bold")
+        ).pack(side="left", padx=8)
 
     # ── Barra de sync ────────────────────────────────────────────────────────
 
@@ -94,7 +119,6 @@ class MainWindow(ctk.CTkToplevel):
         barra = ctk.CTkFrame(self, fg_color="#0E0E0E", corner_radius=0, height=28)
         barra.pack(fill="x", side="bottom")
         barra.pack_propagate(False)
-
         self._lbl_sync = ctk.CTkLabel(
             barra, text="● Conectando...",
             font=("Arial", 10), text_color="#555555"
@@ -102,52 +126,44 @@ class MainWindow(ctk.CTkToplevel):
         self._lbl_sync.pack(side="right", padx=14)
 
     def _set_sync_ok(self, timestamp):
-        hora = timestamp.strftime("%H:%M:%S")
         self._lbl_sync.configure(
-            text=f"● Sincronizado  {hora}", text_color="#A3F843"
+            text=f"● Sincronizado  {timestamp.strftime('%H:%M:%S')}",
+            text_color="#A3F843"
         )
 
     def _set_sync_error(self):
         self._lbl_sync.configure(
-            text="⚠  Sin conexión — reintentando en 60s", text_color="#FFA500"
+            text="⚠  Sin conexión — reintentando en 60s",
+            text_color="#FFA500"
         )
 
     def _set_sync_reconectado(self, timestamp):
-        hora = timestamp.strftime("%H:%M:%S")
         self._lbl_sync.configure(
-            text=f"● Reconectado  {hora}", text_color="#A3F843"
+            text=f"● Reconectado  {timestamp.strftime('%H:%M:%S')}",
+            text_color="#A3F843"
         )
 
-    # ── Loop de drenado de cola (hilo UI) ────────────────────────────────────
+    # ── Loop de drenado de cola ──────────────────────────────────────────────
 
     def _procesar_cola_sync(self):
         try:
             while True:
                 evento = self._poller.cola.get_nowait()
-
                 if isinstance(evento, EventoActualizacion):
                     self._set_sync_ok(evento.timestamp)
-                    self._refrescar_ventana_ver(evento.reservas)
-
+                    self._refrescar_ventana_ver()
                 elif isinstance(evento, EventoError):
                     self._set_sync_error()
-
                 elif isinstance(evento, EventoReconexion):
                     self._set_sync_reconectado(evento.timestamp)
-
         except Exception:
-            pass   # cola vacía → no hay nada que procesar
-
-        # Volver a programar si la ventana sigue viva
+            pass
         try:
             self.after(POLL_CHECK_MS, self._procesar_cola_sync)
         except Exception:
             pass
 
-    # ── Refresco de sub-ventanas ─────────────────────────────────────────────
-
-    def _refrescar_ventana_ver(self, reservas: list):
-        """Si 'Ver Reservas' está abierta, recarga su tabla."""
+    def _refrescar_ventana_ver(self):
         if self._ventana_ver and self._ventana_ver.winfo_exists():
             self._ventana_ver.cargar_reservas()
 
@@ -155,7 +171,6 @@ class MainWindow(ctk.CTkToplevel):
 
     def abrir_registrar(self):
         win = ReservasWindow(self)
-        # Al guardar una reserva, forzar sync inmediato
         win.bind("<<ReservaGuardada>>", lambda e: self._poller.forzar_actualizacion())
 
     def abrir_ver(self):
@@ -173,14 +188,27 @@ class MainWindow(ctk.CTkToplevel):
     # ── Ciclos periódicos ────────────────────────────────────────────────────
 
     def limpiar_reservas_periodicamente(self):
-        from models.models import eliminar_reservas_expiradas
-        eliminar_reservas_expiradas()
+        from models.reservas_service import eliminar_reservas_expiradas
+        try:
+            eliminar_reservas_expiradas()
+        except Exception:
+            pass
         self.after(60000, self.limpiar_reservas_periodicamente)
 
-    # ── Cierre ───────────────────────────────────────────────────────────────
+    # ── Cierre y logout ──────────────────────────────────────────────────────
+
+    def _cerrar_sesion(self):
+        self._poller.detener()
+        SessionManager.cerrar_sesion()
+        self._volver_login()
+
+    def _volver_login(self):
+        self.master.deiconify()
+        self.destroy()
 
     def _cerrar(self):
         self._poller.detener()
+        SessionManager.cerrar_sesion()
         self.master.quit()
 
     # ── Cards ────────────────────────────────────────────────────────────────
@@ -202,7 +230,6 @@ class MainWindow(ctk.CTkToplevel):
             font=("Arial Black", 18, "bold"), text_color="#A3F843"
         )
         lbl_titulo.pack()
-
         lbl_sub = ctk.CTkLabel(
             inner, text=subtitulo,
             font=("Arial", 12), text_color="#666666"

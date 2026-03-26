@@ -2,36 +2,41 @@
 import customtkinter as ctk
 from tkcalendar import DateEntry
 from tkinter import messagebox
+from auth.session import SessionManager
 from utils.validaciones import validar_horario
-from models.models import listar_canchas, insertar_reserva, hay_superposicion
+from models.canchas_service import listar_canchas_activas
+from models.reservas_service import insertar_reserva, hay_superposicion
 
 
 class ReservasWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
+
+        if not SessionManager.esta_logueado():
+            self.after(0, self.destroy)
+            return
+
         self.title("Nueva Reserva")
         width, height = 520, 550
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        x = (self.winfo_screenwidth() // 2) - (width  // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
         self.resizable(False, False)
         self.transient(parent)
         self.configure(fg_color="#121212")
 
-        # Barra superior
         ctk.CTkFrame(self, height=4, fg_color="#A3F843", corner_radius=0).pack(fill="x")
 
-        # Header
         ctk.CTkLabel(self, text="NUEVA RESERVA",
             font=("Arial Black", 22, "bold"), text_color="#FFFFFF").pack(pady=(20, 0))
         ctk.CTkLabel(self, text="Completá los datos del turno",
             font=("Arial", 11), text_color="#A3F843").pack(pady=(2, 0))
-        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(fill="x", padx=40, pady=(14, 0))
+        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(
+            fill="x", padx=40, pady=(14, 0))
 
-        # Card formulario
         card = ctk.CTkFrame(self, fg_color="#1A1A1A", corner_radius=14)
         card.pack(padx=36, pady=18, fill="both", expand=True)
 
@@ -44,7 +49,7 @@ class ReservasWindow(ctk.CTkToplevel):
         self.entry_cliente.pack(padx=22)
 
         ctk.CTkLabel(card, text="CANCHA", **lbl_kw).pack(anchor="w", padx=22, pady=(12, 3))
-        self.canchas = listar_canchas()
+        self.canchas = listar_canchas_activas()
         opciones = [f"{r[1]} ({r[2]})" for r in self.canchas]
         self.combo_cancha = ctk.CTkComboBox(card, values=opciones, width=408, height=38,
             fg_color="#212121", border_color="#333333", text_color="#FFFFFF",
@@ -54,7 +59,6 @@ class ReservasWindow(ctk.CTkToplevel):
             self.combo_cancha.set(opciones[0])
         self.combo_cancha.pack(padx=22)
 
-        # Fecha y hora en la misma fila
         fila = ctk.CTkFrame(card, fg_color="transparent")
         fila.pack(padx=22, fill="x", pady=(12, 0))
 
@@ -90,11 +94,11 @@ class ReservasWindow(ctk.CTkToplevel):
         self.deiconify()
 
     def guardar(self):
-        cliente = self.entry_cliente.get().strip()
+        cliente   = self.entry_cliente.get().strip()
         seleccion = self.combo_cancha.get()
-        fecha = self.date_entry.get_date().isoformat()
-        hora = self.entry_hora.get().strip()
-        obs = self.entry_obs.get().strip()
+        fecha     = self.date_entry.get_date().isoformat()
+        hora      = self.entry_hora.get().strip()
+        obs       = self.entry_obs.get().strip()
 
         if not cliente:
             messagebox.showerror("Error", "Ingresá el nombre del cliente.")
