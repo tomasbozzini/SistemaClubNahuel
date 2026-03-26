@@ -1,0 +1,35 @@
+# Entorno y secretos
+.env
+*.env
+.env.*
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Base de datos local
+data/reservas.db
+*.db
+*.sqlite3
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
