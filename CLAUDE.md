@@ -8,9 +8,14 @@ Desktop GUI application for managing sports court reservations at Club Nahuel. B
 
 ## Running the app
 
+Always run from the project root — `assets/logoclubnahuel.png` is loaded as a relative path.
+
 ```bash
 # Activate the virtual environment first (Windows)
 venv\Scripts\activate
+
+# Install dependencies (no requirements.txt — install manually)
+pip install customtkinter==5.2.2 tkcalendar==1.6.1 Pillow==12.0.0 pyinstaller==6.16.0
 
 # Run the application
 python main.py
@@ -22,12 +27,18 @@ python init_db.py
 pyinstaller main.spec
 ```
 
+There is no test suite and no linter configured.
+
 ## Key dependencies
 
 - `customtkinter 5.2.2` — modern-styled Tkinter widgets
 - `tkcalendar 1.6.1` — calendar/date picker widgets
 - `Pillow 12.0.0` — logo image loading
 - `pyinstaller 6.16.0` — packaging to `.exe`
+
+## PyInstaller packaging note
+
+`main.spec` produces a single-file `console=False` executable. The `assets/` folder is **not** bundled in `datas` — it must be placed alongside the `.exe` at runtime. `DB_PATH` resolves relative to `sys.argv[0]` so `data/reservas.db` is also created next to the executable.
 
 ## Architecture
 
