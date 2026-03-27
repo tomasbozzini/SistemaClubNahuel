@@ -173,9 +173,12 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             lambda e: self._body_canvas.configure(scrollregion=self._body_canvas.bbox("all")))
 
         # Rueda del mouse → scroll vertical del body
-        for widget in (self._body_canvas, self._hdr_canvas):
-            widget.bind("<MouseWheel>",
-                lambda e: self._body_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+        # Se usa bind_all dentro de la ventana; se desregistra al cerrar
+        self._mw_binding = self.bind_all(
+            "<MouseWheel>",
+            lambda e: self._body_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
+            add="+"
+        )
 
         self._refrescar()
         self._iniciar_auto_refresh()
@@ -293,4 +296,8 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
                 self.after_cancel(self._auto_refresh_id)
             except Exception:
                 pass
+        try:
+            self.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
         super().destroy()
