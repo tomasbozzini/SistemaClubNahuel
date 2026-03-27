@@ -25,8 +25,9 @@ def _duracion_cancha(cancha: Cancha) -> timedelta:
 
 def listar_reservas() -> list[tuple]:
     """
-    Retorna [(id, nombre_cliente, cancha_nombre, tipo, fecha_str, hora_inicio, notas), ...]
+    Retorna [(id, nombre_cliente, cancha_nombre, tipo, fecha_str, hora_inicio, notas, telefono_cliente), ...]
     Solo reservas con estado != 'completada'.
+    telefono_cliente está al final (índice 7) para no romper código que usa índices 0-6.
     """
     with get_connection() as session:
         filas = (
@@ -45,6 +46,32 @@ def listar_reservas() -> list[tuple]:
                 str(r.fecha),
                 str(r.hora_inicio)[:5],
                 r.notas or "",
+                r.telefono_cliente or "",
+            )
+            for r, c in filas
+        ]
+
+
+def listar_reservas_por_fecha(fecha_date) -> list[tuple]:
+    """
+    Retorna reservas confirmadas para una fecha específica.
+    [(cancha_id, cancha_nombre, hora_inicio_str, hora_fin_str, nombre_cliente), ...]
+    """
+    with get_connection() as session:
+        filas = (
+            session.query(Reserva, Cancha)
+            .join(Cancha, Reserva.cancha_id == Cancha.id)
+            .filter(Reserva.fecha == fecha_date, Reserva.estado == "confirmada")
+            .order_by(Reserva.hora_inicio)
+            .all()
+        )
+        return [
+            (
+                r.cancha_id,
+                c.nombre,
+                str(r.hora_inicio)[:5],
+                str(r.hora_fin)[:5],
+                r.nombre_cliente,
             )
             for r, c in filas
         ]
@@ -122,6 +149,7 @@ def insertar_reserva(
     fecha: str,
     hora: str,
     observaciones: str = "",
+    telefono: str = "",
 ) -> int:
     """
     Inserta una reserva. Calcula hora_fin y precio_total automáticamente.
@@ -143,6 +171,7 @@ def insertar_reserva(
             hora_inicio=hora_inicio,
             hora_fin=hora_fin,
             nombre_cliente=cliente,
+            telefono_cliente=telefono or None,
             notas=observaciones,
             estado="confirmada",
             precio_total=precio,

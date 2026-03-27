@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.reservas_service import listar_reservas, eliminar_reserva
+from ui.export_service import exportar_excel_reservas, exportar_pdf_reservas
 
 _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
                "fútbol": "#A3F843", "futbol": "#A3F843",
@@ -21,7 +22,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Ver Reservas")
-        width, height = 900, 520
+        width, height = 1060, 540
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth() // 2) - (width  // 2)
@@ -74,11 +75,11 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         tree_frame = ctk.CTkFrame(card, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=16, pady=(16, 0))
 
-        cols = ("ID", "Cliente", "Cancha", "Tipo", "Fecha", "Hora", "Notas")
+        cols = ("ID", "Cliente", "Celular", "Cancha", "Tipo", "Fecha", "Hora", "Notas")
         self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings",
             style="Club.Treeview")
-        widths = {"ID": 42, "Cliente": 165, "Cancha": 145, "Tipo": 80,
-                  "Fecha": 100, "Hora": 64, "Notas": 210}
+        widths = {"ID": 42, "Cliente": 155, "Celular": 120, "Cancha": 130, "Tipo": 74,
+                  "Fecha": 96, "Hora": 60, "Notas": 200}
         for c in cols:
             self.tree.heading(c, text=c)
             self.tree.column(c, width=widths.get(c, 100), anchor="center")
@@ -94,15 +95,30 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.tag_configure("futbol", foreground="#A3F843")
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
 
-        # Botón eliminar
+        # Barra inferior: exportar + eliminar
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(10, 0))
-        ctk.CTkButton(card, text="ELIMINAR RESERVA SELECCIONADA",
+        barra_btn = ctk.CTkFrame(card, fg_color="transparent")
+        barra_btn.pack(fill="x")
+
+        ctk.CTkButton(barra_btn, text="⬇ EXCEL",
+            command=self._exportar_excel,
+            fg_color="transparent", hover_color="#0A1A0A",
+            text_color="#A3F843", border_color="#1A2A1A", border_width=1,
+            corner_radius=0, height=40, width=130, font=("Arial", 11, "bold")
+        ).pack(side="left")
+        ctk.CTkButton(barra_btn, text="⬇ PDF",
+            command=self._exportar_pdf,
+            fg_color="transparent", hover_color="#0A0A1A",
+            text_color="#00C4FF", border_color="#0A1A2A", border_width=1,
+            corner_radius=0, height=40, width=120, font=("Arial", 11, "bold")
+        ).pack(side="left")
+        ctk.CTkButton(barra_btn, text="ELIMINAR RESERVA SELECCIONADA",
             command=self.eliminar_reserva_seleccionada,
             fg_color="transparent", hover_color="#1A0000",
             text_color="#FF5C5C", border_color="#2A0000", border_width=1,
             corner_radius=0, height=40, font=("Arial", 11, "bold")
-        ).pack(fill="x")
+        ).pack(side="right", fill="x", expand=True)
 
         self._orden_deporte = False
         self.cargar_reservas()
@@ -137,15 +153,25 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
     def cargar_reservas(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
-        filas = listar_reservas()
+        self._filas = listar_reservas()
+        filas = self._filas
         if self._orden_deporte:
             filas = sorted(filas, key=lambda f: (f[3].lower(), f[4], f[5]))
         for f in filas:
+            # Tuple: (id[0], cliente[1], cancha[2], tipo[3], fecha[4], hora[5], notas[6], telefono[7])
+            # Display order: ID, Cliente, Celular, Cancha, Tipo, Fecha, Hora, Notas
             tipo_raw = f[3].lower().replace("á", "a").replace("ú", "u")
             tag = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
-            self.tree.insert("", tk.END, values=f, tags=(tag,))
+            display = (f[0], f[1], f[7], f[2], f[3], f[4], f[5], f[6])
+            self.tree.insert("", tk.END, values=display, tags=(tag,))
         n = len(filas)
         self.lbl_count.configure(text=f"{n} turno{'s' if n != 1 else ''}")
+
+    def _exportar_excel(self):
+        exportar_excel_reservas(getattr(self, "_filas", []))
+
+    def _exportar_pdf(self):
+        exportar_pdf_reservas(getattr(self, "_filas", []))
 
     def eliminar_reserva_seleccionada(self):
         seleccion = self.tree.selection()

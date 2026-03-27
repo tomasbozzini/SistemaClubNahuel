@@ -6,6 +6,7 @@ from datetime import date
 from auth.session import SessionManager
 from models.reservas_service import listar_historial_financiero, totales_financieros
 from models.canchas_service import listar_canchas_activas
+from ui.export_service import exportar_excel_financiero, exportar_pdf_financiero
 
 _COLOR = "#FFD700"
 
@@ -37,6 +38,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         self._periodo   = "hoy"
         self._cancha_id = None
         self._lbl_totales: dict[str, ctk.CTkLabel] = {}
+        self._filas_actuales: list = []
 
         self._build_ui()
         self.after(150, self._mostrar_ventana)
@@ -139,7 +141,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         self._combo_cancha.set("Todas")
         self._combo_cancha.pack()
 
-        # Derecha: contador + refrescar
+        # Derecha: exportar + contador + refrescar
         side_right = ctk.CTkFrame(row, fg_color="transparent")
         side_right.pack(side="right")
         ctk.CTkButton(
@@ -148,7 +150,21 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
             text_color=_COLOR, border_color="#2A2000", border_width=1,
             corner_radius=8, font=("Arial", 11, "bold"),
             command=self._aplicar_filtros,
-        ).pack(side="right")
+        ).pack(side="right", padx=(4, 0))
+        ctk.CTkButton(
+            side_right, text="⬇ PDF", width=80, height=32,
+            fg_color="transparent", hover_color="#0A0A1A",
+            text_color="#00C4FF", border_color="#0A1A2A", border_width=1,
+            corner_radius=8, font=("Arial", 11, "bold"),
+            command=lambda: exportar_pdf_financiero(self._filas_actuales),
+        ).pack(side="right", padx=4)
+        ctk.CTkButton(
+            side_right, text="⬇ EXCEL", width=96, height=32,
+            fg_color="transparent", hover_color="#0A1A0A",
+            text_color="#A3F843", border_color="#1A2A1A", border_width=1,
+            corner_radius=8, font=("Arial", 11, "bold"),
+            command=lambda: exportar_excel_financiero(self._filas_actuales),
+        ).pack(side="right", padx=4)
         self._lbl_count = ctk.CTkLabel(side_right, text="",
             font=("Arial", 11), text_color="#333333")
         self._lbl_count.pack(side="right", padx=(0, 12))
@@ -245,6 +261,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         self._actualizar_totales()
 
     def _cargar_tabla(self, filas: list):
+        self._filas_actuales = filas
         for item in self.tree.get_children():
             self.tree.delete(item)
 
