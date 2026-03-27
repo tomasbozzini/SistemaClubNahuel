@@ -5,7 +5,6 @@ from PIL import Image
 from auth.session import SessionManager
 from ui.reservas_window import ReservasWindow
 from ui.ver_reservas_window import VerReservasWindow
-from ui.gestionar_canchas_window import GestionarCanchasWindow
 from ui.calendario_reservas_window import CalendarioWindow
 from sync.poller import ReservasPoller, EventoActualizacion, EventoError, EventoReconexion
 
@@ -17,6 +16,7 @@ _COLOR = {
     "ver":       "#00C4FF",
     "calendario":"#9D6EFF",
     "canchas":   "#FF8C42",
+    "finanzas":  "#FFD700",
 }
 
 
@@ -100,10 +100,10 @@ class MainWindow(ctk.CTkToplevel):
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
         cards_frame.pack(pady=26)
 
-        self._crear_card(cards_frame, "NUEVA RESERVA",  "Registrá un nuevo turno",  "✦", _COLOR["reserva"],    self.abrir_registrar,         0, 0)
-        self._crear_card(cards_frame, "VER RESERVAS",   "Listado completo de turnos","≡", _COLOR["ver"],        self.abrir_ver,               0, 1)
-        self._crear_card(cards_frame, "CALENDARIO",     "Vista mensual de reservas", "◉", _COLOR["calendario"], self.abrir_calendario,        1, 0)
-        self._crear_card(cards_frame, "CANCHAS",        "Gestioná las canchas",      "◈", _COLOR["canchas"],    self.abrir_gestionar_canchas, 1, 1)
+        self._crear_card(cards_frame, "NUEVA RESERVA",      "Registrá un nuevo turno",       "✦", _COLOR["reserva"],    self.abrir_registrar,  0, 0)
+        self._crear_card(cards_frame, "VER RESERVAS",       "Listado completo de turnos",    "≡", _COLOR["ver"],        self.abrir_ver,        0, 1)
+        self._crear_card(cards_frame, "CALENDARIO",         "Vista mensual de reservas",     "◉", _COLOR["calendario"], self.abrir_calendario, 1, 0)
+        self._crear_card(cards_frame, "HISTORIAL FINANCIERO","Registros y totales recaudados","$", _COLOR["finanzas"],   self.abrir_finanzas,   1, 1)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x", padx=0)
 
@@ -165,6 +165,69 @@ class MainWindow(ctk.CTkToplevel):
             card.configure(
                 fg_color="#1C1C1C" if active else "#141414",
                 border_color=color if active else "#222222"
+            )
+            arrow.configure(text_color=color if active else "#2A2A2A")
+            lbl_titulo.configure(text_color=color if active else "#FFFFFF")
+
+        def check_hover():
+            try:
+                cx, cy = card.winfo_rootx(), card.winfo_rooty()
+                cw, ch = card.winfo_width(), card.winfo_height()
+                mx, my = card.winfo_pointerx(), card.winfo_pointery()
+                if not (cx <= mx <= cx + cw and cy <= my <= cy + ch):
+                    set_hover(False)
+            except Exception:
+                pass
+
+        def _ejecutar(cmd):
+            try:
+                cmd()
+            except Exception as ex:
+                import traceback
+                traceback.print_exc()
+                from tkinter import messagebox
+                messagebox.showerror("Error al abrir ventana", str(ex))
+
+        for w in (card, icon_bg, lbl_icon, lbl_titulo, lbl_sub, arrow, accent):
+            w.bind("<Enter>",    lambda e: set_hover(True))
+            w.bind("<Leave>",    lambda e: card.after(10, check_hover))
+            w.bind("<Button-1>", lambda e, c=comando: _ejecutar(c))
+
+    def _crear_card_wide(self, parent, titulo, subtitulo, icono, color, comando):
+        """Card de ancho completo (ocupa las dos columnas)."""
+        card = ctk.CTkFrame(
+            parent, width=774, height=80,
+            fg_color="#141414", corner_radius=14,
+            border_width=1, border_color="#222222",
+        )
+        card.pack()
+        card.pack_propagate(False)
+
+        accent = ctk.CTkFrame(card, height=3, fg_color=color, corner_radius=0)
+        accent.place(x=0, y=0, relwidth=1.0)
+
+        icon_bg = ctk.CTkFrame(card, width=46, height=46,
+            fg_color="#1C1C1C", corner_radius=12)
+        icon_bg.place(x=18, y=17)
+        icon_bg.pack_propagate(False)
+        lbl_icon = ctk.CTkLabel(icon_bg, text=icono,
+            font=("Arial Black", 20), text_color=color)
+        lbl_icon.place(relx=0.5, rely=0.5, anchor="center")
+
+        lbl_titulo = ctk.CTkLabel(card, text=titulo,
+            font=("Arial Black", 15, "bold"), text_color="#FFFFFF")
+        lbl_titulo.place(x=76, y=18)
+        lbl_sub = ctk.CTkLabel(card, text=subtitulo,
+            font=("Arial", 11), text_color="#444444")
+        lbl_sub.place(x=76, y=44)
+
+        arrow = ctk.CTkLabel(card, text="›", font=("Arial Black", 26), text_color="#2A2A2A")
+        arrow.place(relx=0.97, rely=0.55, anchor="center")
+
+        def set_hover(active):
+            card.configure(
+                fg_color="#1C1C1C" if active else "#141414",
+                border_color=color if active else "#222222",
             )
             arrow.configure(text_color=color if active else "#2A2A2A")
             lbl_titulo.configure(text_color=color if active else "#FFFFFF")
@@ -253,11 +316,12 @@ class MainWindow(ctk.CTkToplevel):
             return
         self._ventana_ver = VerReservasWindow(self)
 
-    def abrir_gestionar_canchas(self):
-        GestionarCanchasWindow(self)
-
     def abrir_calendario(self):
         CalendarioWindow(self)
+
+    def abrir_finanzas(self):
+        from ui.financiero_window import FinancieroWindow
+        FinancieroWindow(self)
 
     # ── Ciclos periódicos ─────────────────────────────────────────────────────
 

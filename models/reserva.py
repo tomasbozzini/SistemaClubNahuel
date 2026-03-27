@@ -1,5 +1,5 @@
 # models/reserva.py
-from sqlalchemy import Column, Integer, String, Date, Time, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Date, Time, DateTime, Float, ForeignKey, func
 from sqlalchemy.orm import relationship
 from db.database import Base
 
@@ -16,6 +16,7 @@ class Reserva(Base):
     telefono_cliente = Column(String(30), nullable=True)
     estado          = Column(String(30), nullable=False, default="confirmada")  # confirmada / cancelada / completada
     notas           = Column(String(500), nullable=True)
+    precio_total    = Column(Float, nullable=True, default=0.0)
     creado_en       = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     creado_por      = Column(Integer, ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
 

@@ -1,5 +1,6 @@
 # ui/reservas_window.py
 import customtkinter as ctk
+from ui.ventana_mixin import VentanaMixin
 from tkcalendar import DateEntry
 from tkinter import messagebox
 from datetime import datetime
@@ -13,7 +14,7 @@ _DURACION_LABEL = {"padel": "1 h 30 min", "futbol": "1 hora", "tenis": "1 hora"}
 _COLOR_TIPO = {"padel": "#00C4FF", "futbol": "#A3F843", "tenis": "#FF8C42"}
 
 
-class ReservasWindow(ctk.CTkToplevel):
+class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
@@ -117,7 +118,7 @@ class ReservasWindow(ctk.CTkToplevel):
             font=("Arial Black", 13, "bold"), corner_radius=0, width=520, height=46
         ).pack(fill="x")
 
-        self.deiconify()
+        self.after(150, self._mostrar_ventana)
 
     def _actualizar_hint(self, *_):
         seleccion = self.combo_cancha.get()
