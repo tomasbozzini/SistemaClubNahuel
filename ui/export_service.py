@@ -133,6 +133,22 @@ def _fmt_peso(valor) -> str:
         return "$ 0"
 
 
+def _pdf_safe(text) -> str:
+    """Convierte texto a latin-1 seguro para las fuentes built-in de fpdf2."""
+    _repl = {
+        "\u2014": "-", "\u2013": "-",   # em/en dash
+        "\u2192": "->", "\u2190": "<-",
+        "\u21BA": "~",  "\u2B07": "v",
+        "\u25C9": "*",  "\u2726": "*",
+        "\u25CE": "*",  "\u25C8": "*",
+    }
+    result = []
+    for c in str(text):
+        c = _repl.get(c, c)
+        result.append(c if ord(c) < 256 else "?")
+    return "".join(result)
+
+
 def exportar_pdf_reservas(filas: list) -> None:
     if not filas:
         messagebox.showwarning("Sin datos", "No hay reservas para exportar.")
@@ -152,7 +168,7 @@ def exportar_pdf_reservas(filas: list) -> None:
         # Título
         pdf.set_font("Helvetica", "B", 16)
         pdf.set_text_color(30, 30, 30)
-        pdf.cell(0, 10, "Club Nahuel — Listado de Reservas", ln=True, align="C")
+        pdf.cell(0, 10, "Club Nahuel - Listado de Reservas", ln=True, align="C")
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(120, 120, 120)
         pdf.cell(0, 6, f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
@@ -176,7 +192,7 @@ def exportar_pdf_reservas(filas: list) -> None:
             pdf.set_text_color(30, 30, 30)
             row = [str(f[0]), f[1], f[7], f[2], f[3], f[4], f[5], f[6]]
             for val, w in zip(row, col_w):
-                pdf.cell(w, 7, str(val)[:30], border=1, fill=fill, align="C")
+                pdf.cell(w, 7, _pdf_safe(val)[:30], border=1, fill=fill, align="C")
             pdf.ln()
 
         pdf.output(ruta)
@@ -204,7 +220,7 @@ def exportar_pdf_financiero(filas: list) -> None:
         # Título
         pdf.set_font("Helvetica", "B", 16)
         pdf.set_text_color(30, 30, 30)
-        pdf.cell(0, 10, "Club Nahuel — Historial Financiero", ln=True, align="C")
+        pdf.cell(0, 10, "Club Nahuel - Historial Financiero", ln=True, align="C")
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(120, 120, 120)
         pdf.cell(0, 6, f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
@@ -231,10 +247,10 @@ def exportar_pdf_financiero(filas: list) -> None:
             dur_str = f"{dur // 60}h {dur % 60:02d}m" if dur % 60 else f"{dur // 60}h"
             precio_val = f[9] if f[8] == "completada" else 0.0
             total += precio_val
-            precio_str = _fmt_peso(precio_val) if f[8] == "completada" else "—"
+            precio_str = _fmt_peso(precio_val) if f[8] == "completada" else "-"
             row = [str(f[0]), f[1], f[2], f[3], f[4], f[5], f[6], dur_str, f[8], precio_str]
             for val, w in zip(row, col_w):
-                pdf.cell(w, 7, str(val)[:28], border=1, fill=fill, align="C")
+                pdf.cell(w, 7, _pdf_safe(val)[:28], border=1, fill=fill, align="C")
             pdf.ln()
 
         # Total
