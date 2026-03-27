@@ -1,5 +1,6 @@
 # ui/calendario_reservas_window.py
 import customtkinter as ctk
+from ui.ventana_mixin import VentanaMixin
 from tkcalendar import Calendar
 from datetime import datetime
 from auth.session import SessionManager
@@ -10,7 +11,7 @@ _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
                "tenis": "#FF8C42"}
 
 
-class CalendarioWindow(ctk.CTkToplevel):
+class CalendarioWindow(VentanaMixin, ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
@@ -116,7 +117,7 @@ class CalendarioWindow(ctk.CTkToplevel):
 
         self.calendar.bind("<<CalendarSelected>>", lambda e: self.mostrar_reservas())
         self.mostrar_reservas()
-        self.deiconify()
+        self.after(150, self._mostrar_ventana)
 
     def _abrir_reserva(self):
         from ui.reservas_window import ReservasWindow

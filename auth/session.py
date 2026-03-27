@@ -27,3 +27,7 @@ class SessionManager:
     @classmethod
     def es_admin(cls) -> bool:
         return cls._usuario is not None and cls._usuario.rol == "admin"
+
+    @classmethod
+    def es_supervisor(cls) -> bool:
+        return cls._usuario is not None and cls._usuario.rol == "supervisor"

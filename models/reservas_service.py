@@ -1,6 +1,4 @@
 # models/reservas_service.py
-# Capa de servicio para reservas usando PostgreSQL (SQLAlchemy).
-# Mantiene las mismas firmas que models.models para compatibilidad con la UI.
 
 from datetime import datetime, timedelta, date, time
 
@@ -12,23 +10,29 @@ from models.cancha import Cancha
 from models.reserva import Reserva
 
 
-def _duracion_por_tipo(tipo: str) -> timedelta:
-    """Retorna la duración del turno según el tipo de cancha."""
-    normalizado = tipo.lower().replace("á", "a").replace("ú", "u") if tipo else ""
-    if normalizado == "padel":
-        return timedelta(minutes=90)
-    return timedelta(hours=1)  # futbol y tenis
+# ── Duración ──────────────────────────────────────────────────────────────────
 
+def _duracion_cancha(cancha: Cancha) -> timedelta:
+    """Usa duracion_minutos de la cancha si está seteado, sino deriva del tipo."""
+    minutos = getattr(cancha, "duracion_minutos", None) or 0
+    if minutos > 0:
+        return timedelta(minutes=minutos)
+    tipo = (cancha.tipo or "").lower().replace("á", "a").replace("ú", "u")
+    return timedelta(minutes=90) if tipo == "padel" else timedelta(hours=1)
+
+
+# ── Lectura (solo reservas activas/futuras) ───────────────────────────────────
 
 def listar_reservas() -> list[tuple]:
     """
     Retorna [(id, nombre_cliente, cancha_nombre, tipo, fecha_str, hora_inicio, notas), ...]
-    ordenado por fecha y hora — mismo formato que el SQLite original.
+    Solo reservas con estado != 'completada'.
     """
     with get_connection() as session:
         filas = (
             session.query(Reserva, Cancha)
             .join(Cancha, Reserva.cancha_id == Cancha.id)
+            .filter(Reserva.estado != "completada")
             .order_by(Reserva.fecha, Reserva.hora_inicio)
             .all()
         )
@@ -46,6 +50,72 @@ def listar_reservas() -> list[tuple]:
         ]
 
 
+# ── Historial financiero ──────────────────────────────────────────────────────
+
+def listar_historial_financiero(
+    fecha_desde=None,
+    fecha_hasta=None,
+    cancha_id: int = None,
+) -> list[tuple]:
+    """
+    Retorna todas las reservas (todos los estados) que coincidan con los filtros.
+    Orden: fecha desc, hora_inicio desc.
+    Columnas: (id, cliente, cancha_nombre, tipo, fecha, hora_inicio, hora_fin,
+               duracion_minutos, estado, precio_total)
+    """
+    with get_connection() as session:
+        q = (
+            session.query(Reserva, Cancha)
+            .join(Cancha, Reserva.cancha_id == Cancha.id)
+        )
+        if fecha_desde:
+            q = q.filter(Reserva.fecha >= fecha_desde)
+        if fecha_hasta:
+            q = q.filter(Reserva.fecha <= fecha_hasta)
+        if cancha_id:
+            q = q.filter(Reserva.cancha_id == cancha_id)
+
+        filas = q.order_by(Reserva.fecha.desc(), Reserva.hora_inicio.desc()).all()
+
+        return [
+            (
+                r.id,
+                r.nombre_cliente,
+                c.nombre,
+                c.tipo,
+                str(r.fecha),
+                str(r.hora_inicio)[:5],
+                str(r.hora_fin)[:5],
+                c.duracion_minutos,
+                r.estado,
+                r.precio_total or 0.0,
+            )
+            for r, c in filas
+        ]
+
+
+def totales_financieros() -> dict:
+    """
+    Retorna totales de reservas con estado='completada'.
+    {'hoy': X, 'mes': X, 'anio': X, 'total': X}
+    """
+    hoy    = date.today()
+    with get_connection() as session:
+        completadas = (
+            session.query(Reserva)
+            .filter(Reserva.estado == "completada")
+            .all()
+        )
+        total_hoy  = sum(r.precio_total or 0 for r in completadas if r.fecha == hoy)
+        total_mes  = sum(r.precio_total or 0 for r in completadas
+                         if r.fecha.year == hoy.year and r.fecha.month == hoy.month)
+        total_anio = sum(r.precio_total or 0 for r in completadas if r.fecha.year == hoy.year)
+        total_all  = sum(r.precio_total or 0 for r in completadas)
+    return {"hoy": total_hoy, "mes": total_mes, "anio": total_anio, "total": total_all}
+
+
+# ── Escritura ─────────────────────────────────────────────────────────────────
+
 def insertar_reserva(
     cliente: str,
     cancha_id: int,
@@ -54,19 +124,18 @@ def insertar_reserva(
     observaciones: str = "",
 ) -> int:
     """
-    Inserta una reserva. La duración depende del tipo de cancha:
-    Pádel = 90 min, Fútbol/Tenis = 60 min.
+    Inserta una reserva. Calcula hora_fin y precio_total automáticamente.
     Retorna el ID de la reserva creada.
     """
     hora_inicio = datetime.strptime(hora, "%H:%M").time()
-
-    usuario = SessionManager.get_usuario_actual()
-    creado_por = usuario.id if usuario else None
+    usuario     = SessionManager.get_usuario_actual()
+    creado_por  = usuario.id if usuario else None
 
     with get_connection() as session:
-        cancha = session.query(Cancha).filter_by(id=cancha_id).first()
-        duracion = _duracion_por_tipo(cancha.tipo if cancha else "")
-        hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
+        cancha    = session.query(Cancha).filter_by(id=cancha_id).first()
+        duracion  = _duracion_cancha(cancha)
+        hora_fin  = (datetime.combine(date.today(), hora_inicio) + duracion).time()
+        precio    = (cancha.precio or 0.0) if cancha else 0.0
 
         reserva = Reserva(
             cancha_id=cancha_id,
@@ -76,6 +145,7 @@ def insertar_reserva(
             nombre_cliente=cliente,
             notas=observaciones,
             estado="confirmada",
+            precio_total=precio,
             creado_por=creado_por,
         )
         session.add(reserva)
@@ -91,10 +161,11 @@ def eliminar_reserva(reserva_id: int):
             session.commit()
 
 
+# ── Overlap ───────────────────────────────────────────────────────────────────
+
 def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
     """
-    Verifica si ya hay una reserva que se superpone con la nueva.
-    La duración de la nueva reserva depende del tipo de cancha.
+    Verifica superposición con reservas activas (excluye completadas).
     """
     try:
         hora_inicio = datetime.strptime(hora, "%H:%M").time()
@@ -104,8 +175,8 @@ def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
     fecha_date = datetime.strptime(fecha, "%Y-%m-%d").date()
 
     with get_connection() as session:
-        cancha = session.query(Cancha).filter_by(id=cancha_id).first()
-        duracion = _duracion_por_tipo(cancha.tipo if cancha else "")
+        cancha   = session.query(Cancha).filter_by(id=cancha_id).first()
+        duracion = _duracion_cancha(cancha)
         hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
 
         conflicto = (
@@ -114,6 +185,7 @@ def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
                 and_(
                     Reserva.cancha_id == cancha_id,
                     Reserva.fecha == fecha_date,
+                    Reserva.estado != "completada",
                     Reserva.hora_inicio < hora_fin,
                     Reserva.hora_fin > hora_inicio,
                 )
@@ -123,16 +195,25 @@ def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
     return conflicto is not None
 
 
+# ── Limpieza periódica ────────────────────────────────────────────────────────
+
 def eliminar_reservas_expiradas():
-    """Elimina reservas cuyo hora_fin ya pasó."""
+    """
+    Marca como 'completada' las reservas cuyo hora_fin ya pasó.
+    No las elimina — quedan en el historial financiero.
+    """
     ahora = datetime.now()
     with get_connection() as session:
-        reservas = session.query(Reserva).all()
-        eliminadas = 0
+        reservas = (
+            session.query(Reserva)
+            .filter(Reserva.estado == "confirmada")
+            .all()
+        )
+        actualizadas = 0
         for r in reservas:
             fin_dt = datetime.combine(r.fecha, r.hora_fin)
             if ahora >= fin_dt:
-                session.delete(r)
-                eliminadas += 1
-        if eliminadas:
+                r.estado = "completada"
+                actualizadas += 1
+        if actualizadas:
             session.commit()

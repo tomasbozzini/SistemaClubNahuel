@@ -1,5 +1,6 @@
 # ui/gestionar_canchas_window.py
 import customtkinter as ctk
+from ui.ventana_mixin import VentanaMixin
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.canchas_service import listar_canchas, insertar_cancha, eliminar_cancha, existe_cancha
@@ -9,7 +10,7 @@ _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
                "tenis": "#FF8C42"}
 
 
-class GestionarCanchasWindow(ctk.CTkToplevel):
+class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
@@ -121,7 +122,7 @@ class GestionarCanchasWindow(ctk.CTkToplevel):
         ).pack(fill="x")
 
         self.cargar_canchas()
-        self.deiconify()
+        self.after(150, self._mostrar_ventana)
 
     def _aplicar_estilo_tree(self):
         style = ttk.Style()

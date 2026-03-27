@@ -113,12 +113,19 @@ class LoginWindow(ctk.CTk):
             return
 
         SessionManager.iniciar_sesion(usuario)
+        self.entry_email.delete(0, "end")
+        self.entry_password.delete(0, "end")
         self._abrir_principal()
 
     def _mostrar_error(self, mensaje: str):
         self.lbl_error.configure(text=mensaje)
 
     def _abrir_principal(self):
-        from ui.main_window import MainWindow
+        usuario = SessionManager.get_usuario_actual()
         self.withdraw()
-        MainWindow(self)
+        if usuario and usuario.rol == "supervisor":
+            from ui.supervisor_window import SupervisorWindow
+            SupervisorWindow(self)
+        else:
+            from ui.main_window import MainWindow
+            MainWindow(self)

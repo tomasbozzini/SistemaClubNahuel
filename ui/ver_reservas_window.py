@@ -1,5 +1,6 @@
 # ui/ver_reservas_window.py
 import customtkinter as ctk
+from ui.ventana_mixin import VentanaMixin
 import tkinter as tk
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
@@ -10,7 +11,7 @@ _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
                "tenis": "#FF8C42"}
 
 
-class VerReservasWindow(ctk.CTkToplevel):
+class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
@@ -105,7 +106,7 @@ class VerReservasWindow(ctk.CTkToplevel):
 
         self._orden_deporte = False
         self.cargar_reservas()
-        self.deiconify()
+        self.after(150, self._mostrar_ventana)
 
     def _aplicar_estilo_tree(self):
         style = ttk.Style()
