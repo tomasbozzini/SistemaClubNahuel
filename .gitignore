@@ -14,8 +14,8 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Base de datos local
-data/reservas.db
+# Base de datos local y datos de runtime
+data/
 *.db
 *.sqlite3
 

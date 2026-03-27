@@ -14,9 +14,10 @@ from models.reserva import Reserva
 
 def _duracion_por_tipo(tipo: str) -> timedelta:
     """Retorna la duración del turno según el tipo de cancha."""
-    if tipo and tipo.lower() == "pádel":
+    normalizado = tipo.lower().replace("á", "a").replace("ú", "u") if tipo else ""
+    if normalizado == "padel":
         return timedelta(minutes=90)
-    return timedelta(hours=1)  # fútbol y tenis
+    return timedelta(hours=1)  # futbol y tenis
 
 
 def listar_reservas() -> list[tuple]:

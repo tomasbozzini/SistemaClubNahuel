@@ -125,7 +125,7 @@ class ReservasWindow(ctk.CTkToplevel):
         if not cancha:
             self.lbl_hint.configure(text="")
             return
-        tipo = cancha[2].lower()
+        tipo = cancha[2].lower().replace("á", "a").replace("ú", "u")
         duracion = _DURACION_LABEL.get(tipo, "1 hora")
         color    = _COLOR_TIPO.get(tipo, "#666666")
         self.lbl_hint.configure(

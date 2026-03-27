@@ -1,28 +1,53 @@
 # auth/auth_service.py
+import json
 import time
 import bcrypt
+from pathlib import Path
+
 from db.database import get_connection
 from models.usuario import Usuario
 
-# --- Rate limiting (en memoria) ---
-# { username: {"intentos": int, "bloqueado_hasta": float} }
-_intentos: dict = {}
+# --- Persistencia de intentos fallidos ---
+_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+_ATTEMPTS_FILE = _DATA_DIR / "login_attempts.json"
 
-MAX_INTENTOS    = 5
+MAX_INTENTOS     = 5
 BLOQUEO_SEGUNDOS = 60
 
 
+def _cargar_intentos() -> dict:
+    try:
+        if _ATTEMPTS_FILE.exists():
+            with open(_ATTEMPTS_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _guardar_intentos(intentos: dict):
+    try:
+        _DATA_DIR.mkdir(exist_ok=True)
+        with open(_ATTEMPTS_FILE, "w") as f:
+            json.dump(intentos, f)
+    except Exception:
+        pass
+
+
 def _registrar_fallo(username: str):
-    estado = _intentos.get(username, {"intentos": 0, "bloqueado_hasta": 0.0})
+    intentos = _cargar_intentos()
+    estado = intentos.get(username, {"intentos": 0, "bloqueado_hasta": 0.0})
     estado["intentos"] += 1
     if estado["intentos"] >= MAX_INTENTOS:
         estado["bloqueado_hasta"] = time.time() + BLOQUEO_SEGUNDOS
-    _intentos[username] = estado
+    intentos[username] = estado
+    _guardar_intentos(intentos)
 
 
 def _esta_bloqueado(username: str) -> tuple[bool, int]:
     """Retorna (bloqueado, segundos_restantes)."""
-    estado = _intentos.get(username)
+    intentos = _cargar_intentos()
+    estado = intentos.get(username)
     if not estado:
         return False, 0
     restante = estado["bloqueado_hasta"] - time.time()
@@ -32,7 +57,10 @@ def _esta_bloqueado(username: str) -> tuple[bool, int]:
 
 
 def _limpiar_intentos(username: str):
-    _intentos.pop(username, None)
+    intentos = _cargar_intentos()
+    if username in intentos:
+        del intentos[username]
+        _guardar_intentos(intentos)
 
 
 def hashear_password(password: str) -> str:
