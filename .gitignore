@@ -24,6 +24,9 @@ build/
 dist/
 *.spec.bak
 
+# Claude Code
+.claude/settings.local.json
+
 # Editores
 .vscode/
 .idea/
