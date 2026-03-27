@@ -1,4 +1,5 @@
 # models/canchas_service.py
+import models.reserva  # noqa: F401 — necesario para que SQLAlchemy resuelva Cancha.reservas
 from db.database import get_connection
 from models.cancha import Cancha
 
