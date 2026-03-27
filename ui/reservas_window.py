@@ -24,7 +24,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Nueva Reserva")
-        width, height = 520, 570
+        width, height = 520, 640
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth() // 2) - (width  // 2)
@@ -60,6 +60,11 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkLabel(card, text="CLIENTE", **lbl_kw).pack(anchor="w", padx=28, pady=(22, 4))
         self.entry_cliente = ctk.CTkEntry(card, placeholder_text="Nombre del cliente", **ent_kw)
         self.entry_cliente.pack(padx=28)
+
+        # Celular
+        ctk.CTkLabel(card, text="CELULAR", **lbl_kw).pack(anchor="w", padx=28, pady=(14, 4))
+        self.entry_celular = ctk.CTkEntry(card, placeholder_text="Ej: 11-1234-5678", **ent_kw)
+        self.entry_celular.pack(padx=28)
 
         # Cancha
         ctk.CTkLabel(card, text="CANCHA", **lbl_kw).pack(anchor="w", padx=28, pady=(16, 4))
@@ -136,6 +141,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
     def guardar(self):
         cliente   = sanitizar_texto(self.entry_cliente.get(), max_largo=100)
+        celular   = sanitizar_texto(self.entry_celular.get(), max_largo=30)
         seleccion = self.combo_cancha.get()
         fecha     = self.date_entry.get_date().isoformat()
         hora      = self.entry_hora.get().strip()
@@ -143,6 +149,9 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         if not cliente:
             messagebox.showerror("Error", "Ingresá el nombre del cliente.")
+            return
+        if not celular:
+            messagebox.showerror("Error", "Ingresá el número de celular.")
             return
         if not seleccion:
             messagebox.showerror("Error", "Seleccioná una cancha.")
@@ -174,7 +183,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             messagebox.showerror("Error", "Esa cancha ya está ocupada en ese horario.")
             return
 
-        reserva_id = insertar_reserva(cliente, cancha_id, fecha, hora, obs)
+        reserva_id = insertar_reserva(cliente, cancha_id, fecha, hora, obs, celular)
         messagebox.showinfo("Reserva guardada", f"Reserva #{reserva_id} registrada correctamente.")
         self.event_generate("<<ReservaGuardada>>", when="tail")
         self.destroy()

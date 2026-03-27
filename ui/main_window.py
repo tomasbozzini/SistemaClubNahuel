@@ -13,11 +13,12 @@ POLL_CHECK_MS = 500
 
 # Acento por sección
 _COLOR = {
-    "reserva":   "#A3F843",
-    "ver":       "#00C4FF",
-    "calendario":"#9D6EFF",
-    "canchas":   "#FF8C42",
-    "finanzas":  "#FFD700",
+    "reserva":        "#A3F843",
+    "ver":            "#00C4FF",
+    "calendario":     "#9D6EFF",
+    "canchas":        "#FF8C42",
+    "finanzas":       "#FFD700",
+    "disponibilidad": "#00D68F",
 }
 
 
@@ -31,7 +32,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             return
 
         self.title("Sistema de Reservas - Club Nahuel")
-        width, height = 900, 740
+        width, height = 900, 800
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
@@ -107,6 +108,13 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         self._crear_card(cards_frame, "VER RESERVAS",       "Listado completo de turnos",    "≡", _COLOR["ver"],        self.abrir_ver,        0, 1)
         self._crear_card(cards_frame, "CALENDARIO",         "Vista mensual de reservas",     "◉", _COLOR["calendario"], self.abrir_calendario, 1, 0)
         self._crear_card(cards_frame, "HISTORIAL FINANCIERO","Registros y totales recaudados","$", _COLOR["finanzas"],   self.abrir_finanzas,   1, 1)
+
+        # Card DISPONIBILIDAD — ancho completo
+        dispon_wrap = ctk.CTkFrame(cards_frame, fg_color="transparent")
+        dispon_wrap.grid(row=2, column=0, columnspan=2, padx=11, pady=(0, 4))
+        self._crear_card_wide(dispon_wrap, "DISPONIBILIDAD",
+            "Vista en tiempo real de canchas y horarios", "◎",
+            _COLOR["disponibilidad"], self.abrir_disponibilidad)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x", padx=0)
 
@@ -325,6 +333,10 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
     def abrir_finanzas(self):
         from ui.financiero_window import FinancieroWindow
         FinancieroWindow(self)
+
+    def abrir_disponibilidad(self):
+        from ui.disponibilidad_window import DisponibilidadWindow
+        DisponibilidadWindow(self)
 
     # ── Ciclos periódicos ─────────────────────────────────────────────────────
 

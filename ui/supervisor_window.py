@@ -24,7 +24,7 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
             return
 
         self.title("Panel Supervisor — Club Nahuel")
-        width, height = 820, 760
+        width, height = 820, 820
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
@@ -96,6 +96,13 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         self._crear_card_wide(canchas_wrap, "GESTIÓN DE CANCHAS",
             "Agregá o eliminá canchas del club", "◈", _COLOR["canchas"],
             self._abrir_canchas)
+
+        # Card DISPONIBILIDAD — fila completa
+        dispon_wrap = ctk.CTkFrame(cards_frame, fg_color="transparent")
+        dispon_wrap.grid(row=3, column=0, columnspan=2, padx=11, pady=(0, 4))
+        self._crear_card_wide(dispon_wrap, "DISPONIBILIDAD",
+            "Vista en tiempo real de canchas y horarios", "◎", "#00D68F",
+            self._abrir_disponibilidad)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
@@ -257,6 +264,10 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
     def _abrir_canchas(self):
         from ui.gestionar_canchas_window import GestionarCanchasWindow
         GestionarCanchasWindow(self)
+
+    def _abrir_disponibilidad(self):
+        from ui.disponibilidad_window import DisponibilidadWindow
+        DisponibilidadWindow(self)
 
     # ── Cierre ────────────────────────────────────────────────────────────────
 
