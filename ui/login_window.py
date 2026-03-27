@@ -1,6 +1,5 @@
 # ui/login_window.py
 import customtkinter as ctk
-from tkinter import messagebox
 from auth.auth_service import verificar_login
 from auth.session import SessionManager
 
@@ -9,90 +8,82 @@ class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Club Nahuel — Iniciar sesión")
-        width, height = 420, 520
+        width, height = 720, 460
         self.resizable(False, False)
-        self.configure(fg_color="#121212")
-
+        self.configure(fg_color="#0D0D0D")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
-
         self._build_ui()
         self.bind("<Return>", lambda e: self._intentar_login())
 
     def _build_ui(self):
-        # Barra de acento
-        ctk.CTkFrame(self, height=5, fg_color="#A3F843", corner_radius=0).pack(fill="x")
+        # ── Panel izquierdo — marca ──────────────────────────────────────────
+        left = ctk.CTkFrame(self, fg_color="#A3F843", corner_radius=0, width=265)
+        left.pack(side="left", fill="y")
+        left.pack_propagate(False)
 
-        # Header
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(pady=(36, 0))
+        brand = ctk.CTkFrame(left, fg_color="transparent")
+        brand.place(relx=0.5, rely=0.44, anchor="center")
 
-        ctk.CTkLabel(
-            header, text="CLUB NAHUEL",
-            font=("Arial Black", 28, "bold"), text_color="#FFFFFF"
-        ).pack()
-        ctk.CTkLabel(
-            header, text="S I S T E M A   D E   R E S E R V A S",
-            font=("Arial", 10), text_color="#A3F843"
-        ).pack(pady=(4, 0))
+        ctk.CTkLabel(brand, text="◈",
+            font=("Arial Black", 54), text_color="#0D0D0D").pack()
+        ctk.CTkLabel(brand, text="CLUB\nNAHUEL",
+            font=("Arial Black", 26, "bold"), text_color="#0D0D0D",
+            justify="center").pack(pady=(2, 0))
+        ctk.CTkFrame(brand, height=2, width=90, fg_color="#0D0D0D",
+            corner_radius=1).pack(pady=(16, 16))
+        ctk.CTkLabel(brand, text="S I S T E M A  D E  R E S E R V A S",
+            font=("Arial", 8, "bold"), text_color="#1E1E1E").pack()
 
-        ctk.CTkFrame(self, height=1, fg_color="#2A2A2A", corner_radius=0).pack(
-            fill="x", padx=40, pady=(24, 0)
-        )
+        ctk.CTkLabel(left, text="v 1.2",
+            font=("Arial", 9), text_color="#2C2C1A").place(relx=0.5, rely=0.93, anchor="center")
 
-        # Card formulario
-        card = ctk.CTkFrame(self, fg_color="#1A1A1A", corner_radius=14)
-        card.pack(padx=36, pady=20, fill="both", expand=True)
+        # ── Panel derecho — formulario ───────────────────────────────────────
+        right = ctk.CTkFrame(self, fg_color="#0D0D0D", corner_radius=0)
+        right.pack(side="left", fill="both", expand=True)
 
-        ctk.CTkLabel(
-            card, text="Iniciar sesión",
-            font=("Arial Black", 16, "bold"), text_color="#FFFFFF"
-        ).pack(anchor="w", padx=24, pady=(22, 0))
-        ctk.CTkLabel(
-            card, text="Ingresá tus credenciales para continuar",
-            font=("Arial", 11), text_color="#555555"
-        ).pack(anchor="w", padx=24, pady=(2, 16))
+        form_wrap = ctk.CTkFrame(right, fg_color="transparent")
+        form_wrap.place(relx=0.5, rely=0.5, anchor="center")
 
-        lbl_kw = {"font": ("Arial", 10, "bold"), "text_color": "#777777", "anchor": "w"}
+        ctk.CTkLabel(form_wrap, text="Hola, bienvenido",
+            font=("Arial", 12), text_color="#3A3A3A").pack(anchor="w")
+        ctk.CTkLabel(form_wrap, text="Iniciar sesión",
+            font=("Arial Black", 24, "bold"), text_color="#FFFFFF").pack(anchor="w", pady=(2, 28))
+
+        lbl_kw = {"font": ("Arial", 10, "bold"), "text_color": "#555555", "anchor": "w"}
         ent_kw = {
-            "fg_color": "#212121", "border_color": "#333333",
-            "text_color": "#FFFFFF", "corner_radius": 8,
-            "height": 42, "width": 340,
+            "fg_color": "#141414", "border_color": "#252525", "border_width": 1,
+            "text_color": "#FFFFFF", "corner_radius": 10,
+            "height": 46, "width": 310,
+            "placeholder_text_color": "#333333",
         }
 
-        ctk.CTkLabel(card, text="EMAIL", **lbl_kw).pack(anchor="w", padx=24)
-        self.entry_email = ctk.CTkEntry(card, placeholder_text="admin@clubnahuel.com", **ent_kw)
-        self.entry_email.pack(padx=24, pady=(4, 12))
+        ctk.CTkLabel(form_wrap, text="USUARIO", **lbl_kw).pack(anchor="w")
+        self.entry_email = ctk.CTkEntry(form_wrap, placeholder_text="Nombre de usuario", **ent_kw)
+        self.entry_email.pack(pady=(4, 18))
 
-        ctk.CTkLabel(card, text="CONTRASEÑA", **lbl_kw).pack(anchor="w", padx=24)
+        ctk.CTkLabel(form_wrap, text="CONTRASEÑA", **lbl_kw).pack(anchor="w")
         self.entry_password = ctk.CTkEntry(
-            card, placeholder_text="••••••••", show="•", **ent_kw
+            form_wrap, placeholder_text="••••••••", show="•", **ent_kw
         )
-        self.entry_password.pack(padx=24, pady=(4, 0))
+        self.entry_password.pack(pady=(4, 0))
 
-        # Mensaje de error (oculto hasta que haya error)
         self.lbl_error = ctk.CTkLabel(
-            card, text="", font=("Arial", 11),
-            text_color="#FF5C5C", wraplength=340
+            form_wrap, text="", font=("Arial", 11),
+            text_color="#FF5C5C", wraplength=310, anchor="w"
         )
-        self.lbl_error.pack(padx=24, pady=(8, 0))
+        self.lbl_error.pack(pady=(8, 0), anchor="w")
 
         self.btn_login = ctk.CTkButton(
-            card, text="INGRESAR",
+            form_wrap, text="INGRESAR  →",
             command=self._intentar_login,
-            fg_color="#A3F843", hover_color="#91E03A",
-            text_color="#000000", font=("Arial", 13, "bold"),
-            corner_radius=10, height=44, width=340,
+            fg_color="#A3F843", hover_color="#C5FF6B",
+            text_color="#0D0D0D", font=("Arial Black", 13, "bold"),
+            corner_radius=10, height=48, width=310,
         )
-        self.btn_login.pack(padx=24, pady=(16, 24))
-
-        # Footer
-        ctk.CTkLabel(
-            self, text="Club Nahuel  •  Sistema de Reservas",
-            font=("Arial", 9), text_color="#2A2A2A"
-        ).pack(pady=(0, 10))
+        self.btn_login.pack(pady=(20, 0))
 
         self.entry_email.focus()
 
@@ -101,7 +92,7 @@ class LoginWindow(ctk.CTk):
         password = self.entry_password.get()
 
         if not email or not password:
-            self._mostrar_error("Completá email y contraseña.")
+            self._mostrar_error("Completá usuario y contraseña.")
             return
 
         self.btn_login.configure(state="disabled", text="Verificando...")
@@ -111,13 +102,13 @@ class LoginWindow(ctk.CTk):
             usuario = verificar_login(email, password)
         except ValueError as e:
             self._mostrar_error(str(e))
-            self.btn_login.configure(state="normal", text="INGRESAR")
+            self.btn_login.configure(state="normal", text="INGRESAR  →")
             return
 
-        self.btn_login.configure(state="normal", text="INGRESAR")
+        self.btn_login.configure(state="normal", text="INGRESAR  →")
 
         if usuario is None:
-            self._mostrar_error("Email o contraseña incorrectos.")
+            self._mostrar_error("Usuario o contraseña incorrectos.")
             self.entry_password.delete(0, "end")
             return
 
