@@ -101,22 +101,10 @@ class ReservasPoller:
     def _consultar(self):
         try:
             with get_connection() as session:
-                query = session.query(Reserva)
-
-                # Traer solo registros nuevos desde la última consulta
-                if self._ultima_actualizacion:
-                    query = query.filter(
-                        Reserva.creado_en > self._ultima_actualizacion
-                    )
-
-                nuevas = query.order_by(Reserva.creado_en).all()
-
-                # Para detectar eliminaciones: traer lista completa
                 todas = session.query(Reserva).order_by(
                     Reserva.fecha, Reserva.hora_inicio
                 ).all()
 
-                # Serializar a dicts para pasar entre hilos sin sesión activa
                 reservas_serializadas = [_serializar(r) for r in todas]
 
             ahora = datetime.now()

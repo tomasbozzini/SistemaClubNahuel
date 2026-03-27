@@ -12,6 +12,13 @@ from models.cancha import Cancha
 from models.reserva import Reserva
 
 
+def _duracion_por_tipo(tipo: str) -> timedelta:
+    """Retorna la duración del turno según el tipo de cancha."""
+    if tipo and tipo.lower() == "pádel":
+        return timedelta(minutes=90)
+    return timedelta(hours=1)  # fútbol y tenis
+
+
 def listar_reservas() -> list[tuple]:
     """
     Retorna [(id, nombre_cliente, cancha_nombre, tipo, fecha_str, hora_inicio, notas), ...]
@@ -46,18 +53,20 @@ def insertar_reserva(
     observaciones: str = "",
 ) -> int:
     """
-    Inserta una reserva. hora_fin = hora_inicio + 1 hora.
+    Inserta una reserva. La duración depende del tipo de cancha:
+    Pádel = 90 min, Fútbol/Tenis = 60 min.
     Retorna el ID de la reserva creada.
     """
     hora_inicio = datetime.strptime(hora, "%H:%M").time()
-    hora_fin = (
-        datetime.combine(date.today(), hora_inicio) + timedelta(hours=1)
-    ).time()
 
     usuario = SessionManager.get_usuario_actual()
     creado_por = usuario.id if usuario else None
 
     with get_connection() as session:
+        cancha = session.query(Cancha).filter_by(id=cancha_id).first()
+        duracion = _duracion_por_tipo(cancha.tipo if cancha else "")
+        hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
+
         reserva = Reserva(
             cancha_id=cancha_id,
             fecha=datetime.strptime(fecha, "%Y-%m-%d").date(),
@@ -82,18 +91,22 @@ def eliminar_reserva(reserva_id: int):
 
 
 def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
-    """Verifica si ya hay una reserva que se superpone en el rango [hora, hora+1h)."""
+    """
+    Verifica si ya hay una reserva que se superpone con la nueva.
+    La duración de la nueva reserva depende del tipo de cancha.
+    """
     try:
         hora_inicio = datetime.strptime(hora, "%H:%M").time()
     except ValueError:
         return False
 
-    hora_fin = (
-        datetime.combine(date.today(), hora_inicio) + timedelta(hours=1)
-    ).time()
     fecha_date = datetime.strptime(fecha, "%Y-%m-%d").date()
 
     with get_connection() as session:
+        cancha = session.query(Cancha).filter_by(id=cancha_id).first()
+        duracion = _duracion_por_tipo(cancha.tipo if cancha else "")
+        hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
+
         conflicto = (
             session.query(Reserva)
             .filter(
