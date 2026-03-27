@@ -2,11 +2,22 @@
 # Inserta datos iniciales en Supabase.
 # Ejecutar con: python db/seed.py
 
+import os
 import bcrypt
+from dotenv import load_dotenv
 from db.database import get_connection
 from db.init_db import init
 from models.usuario import Usuario
 from models.cancha import Cancha
+
+load_dotenv()
+
+_ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+if not _ADMIN_PASSWORD:
+    raise EnvironmentError(
+        "Falta ADMIN_PASSWORD en el archivo .env. "
+        "Agregá la variable antes de ejecutar seed.py."
+    )
 
 
 def hash_password(plain: str) -> str:
@@ -16,7 +27,7 @@ def hash_password(plain: str) -> str:
 ADMIN = {
     "nombre": "Administrador",
     "email": "admin@clubnahuel.com",
-    "password": "admin1234",
+    "password": _ADMIN_PASSWORD,
     "rol": "admin",
 }
 
@@ -44,7 +55,7 @@ def seed():
                 rol=ADMIN["rol"],
             )
             session.add(admin)
-            print(f"  Usuario creado: {ADMIN['email']} (contraseña: {ADMIN['password']})")
+            print(f"  Usuario creado: {ADMIN['email']} (rol: {ADMIN['rol']})")
         else:
             print(f"  Usuario ya existe: {ADMIN['email']}")
 

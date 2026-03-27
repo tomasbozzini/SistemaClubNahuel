@@ -1,6 +1,6 @@
 # ui/supervisor_window.py
 import customtkinter as ctk
-from ui.ventana_mixin import VentanaMixin
+from ui.ventana_mixin import VentanaMixin, InactividadMixin
 from customtkinter import CTkImage
 from PIL import Image
 from auth.session import SessionManager
@@ -14,7 +14,7 @@ _COLOR = {
 }
 
 
-class SupervisorWindow(VentanaMixin, ctk.CTkToplevel):
+class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
@@ -34,6 +34,7 @@ class SupervisorWindow(VentanaMixin, ctk.CTkToplevel):
         self.configure(fg_color="#0D0D0D")
 
         self._build_ui()
+        self._iniciar_monitor_inactividad()
         self.protocol("WM_DELETE_WINDOW", self._cerrar)
         self.after(150, self._mostrar_ventana)
 
@@ -260,6 +261,10 @@ class SupervisorWindow(VentanaMixin, ctk.CTkToplevel):
     # ── Cierre ────────────────────────────────────────────────────────────────
 
     def _cerrar_sesion(self):
+        from models.logs_service import registrar_log
+        usuario = SessionManager.get_usuario_actual()
+        if usuario:
+            registrar_log("logout", username=usuario.nombre, usuario_id=usuario.id)
         SessionManager.cerrar_sesion()
         self._volver_login()
 

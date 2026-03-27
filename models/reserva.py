@@ -1,11 +1,16 @@
 # models/reserva.py
-from sqlalchemy import Column, Integer, String, Date, Time, DateTime, Float, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Date, Time, DateTime, Float, ForeignKey, Index, func
 from sqlalchemy.orm import relationship
 from db.database import Base
 
 
 class Reserva(Base):
     __tablename__ = "reservas"
+    __table_args__ = (
+        Index("idx_reservas_fecha",        "fecha"),
+        Index("idx_reservas_cancha_fecha", "cancha_id", "fecha"),
+        Index("idx_reservas_estado",       "estado"),
+    )
 
     id              = Column(Integer, primary_key=True, autoincrement=True)
     cancha_id       = Column(Integer, ForeignKey("canchas.id", ondelete="RESTRICT"), nullable=False)
