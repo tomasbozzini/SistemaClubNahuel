@@ -6,6 +6,7 @@ from auth.session import SessionManager
 from ui.reservas_window import ReservasWindow
 from ui.ver_reservas_window import VerReservasWindow
 from ui.calendario_reservas_window import CalendarioWindow
+from ui.ventana_mixin import InactividadMixin
 from sync.poller import ReservasPoller, EventoActualizacion, EventoError, EventoReconexion
 
 POLL_CHECK_MS = 500
@@ -20,7 +21,7 @@ _COLOR = {
 }
 
 
-class MainWindow(ctk.CTkToplevel):
+class MainWindow(InactividadMixin, ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.withdraw()
@@ -48,6 +49,8 @@ class MainWindow(ctk.CTkToplevel):
         self._poller = ReservasPoller()
         self._poller.iniciar()
         self._procesar_cola_sync()
+
+        self._iniciar_monitor_inactividad()
 
         self.protocol("WM_DELETE_WINDOW", self._cerrar)
         self.deiconify()
@@ -329,13 +332,17 @@ class MainWindow(ctk.CTkToplevel):
         from models.reservas_service import eliminar_reservas_expiradas
         try:
             eliminar_reservas_expiradas()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[warn] limpiar_reservas: {e}")
         self.after(60000, self.limpiar_reservas_periodicamente)
 
     # ── Cierre y logout ───────────────────────────────────────────────────────
 
     def _cerrar_sesion(self):
+        from models.logs_service import registrar_log
+        usuario = SessionManager.get_usuario_actual()
+        if usuario:
+            registrar_log("logout", username=usuario.nombre, usuario_id=usuario.id)
         self._poller.detener()
         SessionManager.cerrar_sesion()
         self._volver_login()

@@ -5,7 +5,7 @@ from tkcalendar import DateEntry
 from tkinter import messagebox
 from datetime import datetime
 from auth.session import SessionManager
-from utils.validaciones import validar_horario
+from utils.validaciones import validar_horario, sanitizar_texto
 from models.canchas_service import listar_canchas_activas
 from models.reservas_service import insertar_reserva, hay_superposicion
 
@@ -135,11 +135,11 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         )
 
     def guardar(self):
-        cliente   = self.entry_cliente.get().strip()
+        cliente   = sanitizar_texto(self.entry_cliente.get(), max_largo=100)
         seleccion = self.combo_cancha.get()
         fecha     = self.date_entry.get_date().isoformat()
         hora      = self.entry_hora.get().strip()
-        obs       = self.entry_obs.get().strip()
+        obs       = sanitizar_texto(self.entry_obs.get(), max_largo=300)
 
         if not cliente:
             messagebox.showerror("Error", "Ingresá el nombre del cliente.")

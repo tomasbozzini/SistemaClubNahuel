@@ -200,20 +200,25 @@ def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
 def eliminar_reservas_expiradas():
     """
     Marca como 'completada' las reservas cuyo hora_fin ya pasó.
+    Al completar, fija precio_total desde el precio actual de la cancha
+    (cubre el caso en que el precio fue configurado después de crear la reserva).
     No las elimina — quedan en el historial financiero.
     """
     ahora = datetime.now()
     with get_connection() as session:
-        reservas = (
-            session.query(Reserva)
+        filas = (
+            session.query(Reserva, Cancha)
+            .join(Cancha, Reserva.cancha_id == Cancha.id)
             .filter(Reserva.estado == "confirmada")
             .all()
         )
         actualizadas = 0
-        for r in reservas:
+        for r, c in filas:
             fin_dt = datetime.combine(r.fecha, r.hora_fin)
             if ahora >= fin_dt:
                 r.estado = "completada"
+                if not r.precio_total:
+                    r.precio_total = c.precio or 0.0
                 actualizadas += 1
         if actualizadas:
             session.commit()

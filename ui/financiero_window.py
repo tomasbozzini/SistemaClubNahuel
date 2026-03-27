@@ -158,6 +158,11 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         card = ctk.CTkFrame(self, fg_color="#0F0F0F", corner_radius=0)
         card.pack(fill="both", expand=True)
 
+        # El label se reserva PRIMERO (side=bottom) para que el tree no lo tape
+        self._lbl_total_tabla = ctk.CTkLabel(
+            card, text="", font=("Arial Black", 12, "bold"), text_color=_COLOR)
+        self._lbl_total_tabla.pack(side="bottom", anchor="e", padx=20, pady=8)
+
         tree_frame = ctk.CTkFrame(card, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=14, pady=(14, 0))
 
@@ -180,13 +185,8 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         scrollbar.pack(side="right", fill="y")
 
         self.tree.tag_configure("completada", foreground="#A3F843")
-        self.tree.tag_configure("confirmada", foreground="#00C4FF")
+        self.tree.tag_configure("confirmada", foreground="#FFA040")
         self.tree.tag_configure("cancelada",  foreground="#FF5C5C")
-
-        # Total visible
-        self._lbl_total_tabla = ctk.CTkLabel(
-            card, text="", font=("Arial Black", 12, "bold"), text_color=_COLOR)
-        self._lbl_total_tabla.pack(anchor="e", padx=20, pady=8)
 
     def _aplicar_estilo_tree(self):
         style = ttk.Style()

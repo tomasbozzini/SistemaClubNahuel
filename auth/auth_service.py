@@ -6,6 +6,7 @@ from pathlib import Path
 
 from db.database import get_connection
 from models.usuario import Usuario
+from models.logs_service import registrar_log
 
 # --- Persistencia de intentos fallidos ---
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -78,6 +79,8 @@ def verificar_login(username: str, password: str):
 
     bloqueado, segundos = _esta_bloqueado(username)
     if bloqueado:
+        registrar_log("bloqueado", username=username,
+                      detalle=f"cuenta bloqueada, {segundos}s restantes")
         raise ValueError(f"Demasiados intentos fallidos. Esperá {segundos} segundos.")
 
     with get_connection() as session:
@@ -85,13 +88,17 @@ def verificar_login(username: str, password: str):
 
     if not usuario:
         _registrar_fallo(username)
+        registrar_log("login_fallo", username=username, detalle="usuario no encontrado")
         return None
 
     if not bcrypt.checkpw(password.encode(), usuario.password_hash.encode()):
         _registrar_fallo(username)
+        registrar_log("login_fallo", username=username,
+                      usuario_id=usuario.id, detalle="contraseña incorrecta")
         return None
 
     _limpiar_intentos(username)
+    registrar_log("login_ok", username=username, usuario_id=usuario.id)
     return usuario
 
 
