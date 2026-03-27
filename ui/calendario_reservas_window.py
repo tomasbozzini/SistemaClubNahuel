@@ -120,7 +120,9 @@ class CalendarioWindow(ctk.CTkToplevel):
 
     def _abrir_reserva(self):
         from ui.reservas_window import ReservasWindow
-        ReservasWindow(self.master)
+        win = ReservasWindow(self.master)
+        win.lift()
+        win.focus_force()
 
     def toggle_orden(self):
         self.orden_por_deporte = not self.orden_por_deporte
