@@ -21,8 +21,9 @@ def listar_canchas_activas() -> list[tuple]:
 
 
 def insertar_cancha(nombre: str, tipo: str):
+    tipo_norm = tipo.lower().replace("á", "a").replace("ú", "u")
     with get_connection() as session:
-        session.add(Cancha(nombre=nombre, tipo=tipo.lower()))
+        session.add(Cancha(nombre=nombre, tipo=tipo_norm))
         session.commit()
 
 
