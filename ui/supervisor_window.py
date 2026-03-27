@@ -24,7 +24,7 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
             return
 
         self.title("Panel Supervisor — Club Nahuel")
-        width, height = 820, 820
+        width, height = 820, 870
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
@@ -79,7 +79,7 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
 
         # Cards
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
-        cards_frame.pack(pady=30)
+        cards_frame.pack(pady=16)
 
         self._crear_card(cards_frame, "SISTEMA DE RESERVAS", "Gestioná turnos y reservas",
             "◉", _COLOR["reservas"], self._abrir_reservas, 0, 0)
