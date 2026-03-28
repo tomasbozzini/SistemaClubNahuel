@@ -15,7 +15,7 @@ from models.reservas_service import listar_reservas_por_fecha
 _COLOR       = "#00D68F"
 _SLOT_MINUTES = 30
 _HORA_INICIO  = 8
-_HORA_FIN     = 22
+_HORA_FIN     = 24
 
 _BG_LIBRE    = "#0F1F0F"
 _FG_LIBRE    = "#00D68F"
@@ -37,6 +37,7 @@ def _slots() -> list[str]:
         if m >= 60:
             m -= 60
             h += 1
+    result.append("00:00")
     return result
 
 
@@ -121,6 +122,13 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         self._lbl_update = ctk.CTkLabel(frow, text="",
             font=("Arial", 10), text_color="#333333")
         self._lbl_update.pack(side="left")
+
+        ctk.CTkButton(frow, text="＋  NUEVA RESERVA", width=160, height=32,
+            fg_color="transparent", hover_color="#1A1A1A",
+            text_color="#CCCCCC", border_color="#333333", border_width=1,
+            corner_radius=8, font=("Arial", 11, "bold"),
+            command=self._abrir_nueva_reserva,
+        ).pack(side="right")
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
@@ -248,9 +256,11 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             self._body_frame.columnconfigure(col, minsize=cw)
 
         for row, slot in enumerate(all_slots):
-            s_end  = _t_end(slot)
+            s_end   = _t_end(slot)
             s_start = _t(slot)
-            is_past = es_hoy and s_end <= ahora
+            # Si s_end < s_start el slot cruza medianoche; usar fin-de-día para comparar
+            s_end_cmp = s_end if s_end > s_start else time(23, 59, 59)
+            is_past = es_hoy and s_end_cmp <= ahora
             is_now  = es_hoy and s_start <= ahora < s_end
 
             time_bg = "#1C1C1C" if is_now else ("#0D0D0D" if is_past else "#111111")
@@ -282,6 +292,11 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         self._body_frame.update_idletasks()
         self._hdr_canvas.configure(scrollregion=self._hdr_canvas.bbox("all"))
         self._body_canvas.configure(scrollregion=self._body_canvas.bbox("all"))
+
+    def _abrir_nueva_reserva(self):
+        from ui.reservas_window import ReservasWindow
+        win = ReservasWindow(self)
+        win.bind("<<ReservaGuardada>>", lambda e: self._refrescar())
 
     def _iniciar_auto_refresh(self):
         self._refrescar()

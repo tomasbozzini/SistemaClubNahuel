@@ -49,9 +49,11 @@ def actualizar_precio_cancha(cancha_id: int, precio: float):
 
 
 def eliminar_cancha(cancha_id: int):
+    from models.reserva import Reserva
     with get_connection() as session:
         c = session.query(Cancha).filter_by(id=cancha_id).first()
         if c:
+            session.query(Reserva).filter_by(cancha_id=cancha_id).delete()
             session.delete(c)
             session.commit()
 
