@@ -32,11 +32,19 @@ ADMIN = {
 }
 
 CANCHAS = [
-    {"nombre": "Pádel 1",  "tipo": "padel",  "descripcion": "Cancha de pádel cubierta"},
-    {"nombre": "Pádel 2",  "tipo": "padel",  "descripcion": "Cancha de pádel descubierta"},
-    {"nombre": "Fútbol 1", "tipo": "futbol", "descripcion": "Cancha de fútbol 5"},
-    {"nombre": "Tenis 1",  "tipo": "tenis",  "descripcion": "Cancha de tenis con polvo de ladrillo"},
-    {"nombre": "Tenis 2",  "tipo": "tenis",  "descripcion": "Cancha de tenis rápida"},
+    {"nombre": "Fútbol 8 vs 8",    "tipo": "futbol", "duracion_minutos": 60},
+    {"nombre": "Fútbol 6 vs 6",    "tipo": "futbol", "duracion_minutos": 60},
+    {"nombre": "Fútbol 5 vs 5",    "tipo": "futbol", "duracion_minutos": 60},
+    {"nombre": "Tenis 1",          "tipo": "tenis",  "duracion_minutos": 60},
+    {"nombre": "Tenis 2",          "tipo": "tenis",  "duracion_minutos": 60},
+    {"nombre": "Pádel Singles 1",  "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel Singles 2",  "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel 1",          "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel 2",          "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel 3",          "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel 4",          "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel 5",          "tipo": "padel",  "duracion_minutos": 90},
+    {"nombre": "Pádel 6",          "tipo": "padel",  "duracion_minutos": 90},
 ]
 
 
