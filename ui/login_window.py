@@ -1,4 +1,5 @@
 # ui/login_window.py
+import threading
 import customtkinter as ctk
 from auth.auth_service import verificar_login
 from auth.session import SessionManager
@@ -8,18 +9,86 @@ class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Club Nahuel — Iniciar sesión")
-        width, height = 720, 460
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")
+        self._set_centered(420, 300)
+        self._build_splash()
+        self.after(300, self._verificar_conexion)
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _set_centered(self, width: int, height: int):
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
         y = (self.winfo_screenheight() // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
-        self._build_ui()
-        self.bind("<Return>", lambda e: self._intentar_login())
+
+    # ── Splash / conexión ─────────────────────────────────────────────────────
+
+    def _build_splash(self):
+        self._splash = ctk.CTkFrame(self, fg_color="transparent")
+        self._splash.place(relx=0.5, rely=0.42, anchor="center")
+
+        ctk.CTkLabel(self._splash, text="◈",
+            font=("Arial Black", 52), text_color="#A3F843").pack()
+        ctk.CTkLabel(self._splash, text="CLUB NAHUEL",
+            font=("Arial Black", 22, "bold"), text_color="#FFFFFF").pack(pady=(4, 0))
+        ctk.CTkFrame(self._splash, height=2, width=80, fg_color="#A3F843",
+            corner_radius=1).pack(pady=14)
+
+        self._lbl_estado = ctk.CTkLabel(
+            self._splash, text="Conectando al servidor...",
+            font=("Arial", 11), text_color="#555555",
+        )
+        self._lbl_estado.pack()
+
+        self._btn_reintentar = ctk.CTkButton(
+            self._splash, text="REINTENTAR",
+            command=self._verificar_conexion,
+            fg_color="#A3F843", hover_color="#C5FF6B",
+            text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
+            corner_radius=10, height=40, width=160,
+        )
+        self._btn_salir = ctk.CTkButton(
+            self._splash, text="SALIR",
+            command=self.destroy,
+            fg_color="transparent", hover_color="#1A0000",
+            text_color="#FF5C5C", border_color="#2A0000", border_width=1,
+            corner_radius=10, height=40, width=160,
+        )
+
+        ctk.CTkLabel(self, text="v 1.2",
+            font=("Arial", 9), text_color="#2A2A2A").place(relx=0.5, rely=0.93, anchor="center")
+
+    def _verificar_conexion(self):
+        self._btn_reintentar.pack_forget()
+        self._btn_salir.pack_forget()
+        self._lbl_estado.configure(text="Conectando al servidor...", text_color="#555555")
+        threading.Thread(target=self._chequear_en_hilo, daemon=True).start()
+
+    def _chequear_en_hilo(self):
+        from db.database import probar_conexion
+        ok = probar_conexion()
+        self.after(0, self._on_resultado, ok)
+
+    def _on_resultado(self, ok: bool):
+        if ok:
+            self._splash.destroy()
+            self._set_centered(720, 460)
+            self._build_ui()
+            self.bind("<Return>", lambda e: self._intentar_login())
+        else:
+            self._lbl_estado.configure(
+                text="No se pudo conectar al servidor.\nVerificá tu conexión a internet.",
+                text_color="#FF5C5C",
+            )
+            self._btn_reintentar.pack(pady=(16, 6))
+            self._btn_salir.pack()
+
+    # ── Login form ────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        # ── Panel izquierdo — marca ──────────────────────────────────────────
+        # Panel izquierdo — marca
         left = ctk.CTkFrame(self, fg_color="#A3F843", corner_radius=0, width=265)
         left.pack(side="left", fill="y")
         left.pack_propagate(False)
@@ -40,7 +109,7 @@ class LoginWindow(ctk.CTk):
         ctk.CTkLabel(left, text="v 1.2",
             font=("Arial", 9), text_color="#2C2C1A").place(relx=0.5, rely=0.93, anchor="center")
 
-        # ── Panel derecho — formulario ───────────────────────────────────────
+        # Panel derecho — formulario
         right = ctk.CTkFrame(self, fg_color="#0D0D0D", corner_radius=0)
         right.pack(side="left", fill="both", expand=True)
 
@@ -86,6 +155,8 @@ class LoginWindow(ctk.CTk):
         self.btn_login.pack(pady=(20, 0))
 
         self.entry_email.focus()
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
 
     def _intentar_login(self):
         email    = self.entry_email.get().strip()

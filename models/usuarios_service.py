@@ -66,3 +66,17 @@ def eliminar_admin(usuario_id: int):
         if u:
             session.delete(u)
             session.commit()
+
+
+def restablecer_password(usuario_id: int) -> str:
+    """Genera una contraseña temporal, la guarda hasheada y retorna el texto plano."""
+    import secrets
+    import string
+    nueva = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(10))
+    with get_connection() as session:
+        u = session.query(Usuario).filter_by(id=usuario_id, rol="admin").first()
+        if not u:
+            raise ValueError("Usuario no encontrado.")
+        u.password_hash = hashear_password(nueva)
+        session.commit()
+    return nueva

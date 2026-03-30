@@ -3,7 +3,7 @@ import customtkinter as ctk
 from ui.ventana_mixin import VentanaMixin
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
-from models.usuarios_service import listar_admins, crear_admin, actualizar_admin, eliminar_admin
+from models.usuarios_service import listar_admins, crear_admin, actualizar_admin, eliminar_admin, restablecer_password
 from utils.validaciones import sanitizar_texto, validar_email
 
 _COLOR = "#9D6EFF"   # violeta — color gestión de usuarios
@@ -149,9 +149,16 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
 
         self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)
 
-        # Botón eliminar
+        # Botones de acción
         ctk.CTkFrame(list_card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(10, 0))
+        ctk.CTkButton(list_card, text="RESTABLECER CONTRASEÑA",
+            command=self._restablecer_password,
+            fg_color="transparent", hover_color="#1A1A00",
+            text_color="#FFD700", border_color="#2A2A00", border_width=1,
+            corner_radius=0, height=38, font=("Arial", 11, "bold"),
+        ).pack(fill="x")
+        ctk.CTkFrame(list_card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
         ctk.CTkButton(list_card, text="ELIMINAR USUARIO SELECCIONADO",
             command=self._eliminar,
             fg_color="transparent", hover_color="#1A0000",
@@ -245,6 +252,28 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
 
         self._limpiar_form()
         self._cargar_usuarios()
+
+    def _restablecer_password(self):
+        sel = self.tree.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Seleccioná un usuario para restablecer la contraseña.")
+            return
+        v = self.tree.item(sel[0], "values")
+        usuario_id, nombre = int(v[0]), v[1]
+        if not messagebox.askyesno("Confirmar",
+                f"¿Restablecer la contraseña de '{nombre}'?\n\nSe generará una contraseña temporal."):
+            return
+        try:
+            nueva = restablecer_password(usuario_id)
+        except ValueError as e:
+            messagebox.showerror("Error", str(e))
+            return
+        messagebox.showinfo(
+            "Contraseña restablecida",
+            f"Nueva contraseña temporal para '{nombre}':\n\n"
+            f"  {nueva}\n\n"
+            "Comunicásela al usuario y pedile que la cambie al ingresar."
+        )
 
     def _eliminar(self):
         sel = self.tree.selection()
