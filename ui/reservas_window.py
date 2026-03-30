@@ -6,7 +6,7 @@ from tkinter import messagebox
 from datetime import datetime
 from auth.session import SessionManager
 from utils.validaciones import validar_horario, sanitizar_texto
-from models.canchas_service import listar_canchas_activas
+from models.canchas_service import listar_canchas_con_precio
 from models.reservas_service import insertar_reserva, hay_superposicion
 
 
@@ -68,7 +68,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         # Cancha
         ctk.CTkLabel(card, text="CANCHA", **lbl_kw).pack(anchor="w", padx=28, pady=(16, 4))
-        self.canchas = listar_canchas_activas()
+        self.canchas = listar_canchas_con_precio()
         opciones = [f"{r[1]} ({r[2]})" for r in self.canchas]
 
         self.combo_cancha = ctk.CTkComboBox(card, values=opciones, width=432, height=40,
@@ -131,13 +131,16 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         if not cancha:
             self.lbl_hint.configure(text="")
             return
-        tipo = cancha[2].lower().replace("á", "a").replace("ú", "u")
+        tipo    = cancha[2].lower().replace("á", "a").replace("ú", "u")
         duracion = _DURACION_LABEL.get(tipo, "1 hora")
         color    = _COLOR_TIPO.get(tipo, "#666666")
-        self.lbl_hint.configure(
-            text=f"Duración del turno:  {duracion}",
-            text_color=color
-        )
+        precio   = cancha[3]
+        if precio:
+            precio_str = f"${precio:,.0f}".replace(",", ".")
+            texto = f"Duración:  {duracion}   ·   Precio:  {precio_str}"
+        else:
+            texto = f"Duración:  {duracion}   ·   Precio:  sin definir"
+        self.lbl_hint.configure(text=texto, text_color=color)
 
     def guardar(self):
         cliente   = sanitizar_texto(self.entry_cliente.get(), max_largo=100)
