@@ -4,6 +4,7 @@ from ui.ventana_mixin import VentanaMixin
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.usuarios_service import listar_admins, crear_admin, actualizar_admin, eliminar_admin
+from utils.validaciones import sanitizar_texto, validar_email
 
 _COLOR = "#9D6EFF"   # violeta — color gestión de usuarios
 
@@ -217,12 +218,15 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
             self.tree.selection_remove(self.tree.selection())
 
     def _guardar(self):
-        nombre = self._entry_nombre.get().strip()
-        email  = self._entry_email.get().strip()
+        nombre = sanitizar_texto(self._entry_nombre.get(), max_largo=100)
+        email  = sanitizar_texto(self._entry_email.get(), max_largo=100).lower()
         passwd = self._entry_pass.get().strip()
 
         if not nombre or not email:
             messagebox.showwarning("Atención", "Nombre y email son obligatorios.")
+            return
+        if not validar_email(email):
+            messagebox.showwarning("Atención", "El email no tiene un formato válido.")
             return
 
         try:

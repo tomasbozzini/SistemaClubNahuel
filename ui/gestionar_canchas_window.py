@@ -4,6 +4,9 @@ from ui.ventana_mixin import VentanaMixin
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.canchas_service import listar_canchas, insertar_cancha, eliminar_cancha, existe_cancha
+from utils.validaciones import sanitizar_texto
+
+_TIPOS_VALIDOS = {"Fútbol", "Pádel", "Tenis"}
 
 _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
                "fútbol": "#A3F843", "futbol": "#A3F843",
@@ -152,10 +155,13 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             self.tree.insert("", "end", values=fila[:3], tags=(tag,))
 
     def agregar_cancha(self):
-        nombre = self.entry_nombre.get().strip()
+        nombre = sanitizar_texto(self.entry_nombre.get(), max_largo=100)
         tipo   = self.combo_tipo.get().strip()
         if not nombre or not tipo:
             messagebox.showwarning("Error", "Completá todos los campos.")
+            return
+        if tipo not in _TIPOS_VALIDOS:
+            messagebox.showwarning("Error", "Tipo de cancha inválido.")
             return
         if existe_cancha(nombre):
             messagebox.showerror("Error", "Ya existe una cancha con ese nombre.")
