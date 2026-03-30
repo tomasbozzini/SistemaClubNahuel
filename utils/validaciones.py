@@ -1,3 +1,4 @@
+import re
 import unicodedata
 from datetime import datetime
 
@@ -12,6 +13,11 @@ def validar_horario(hora_str: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def validar_email(email: str) -> bool:
+    """Valida que el email tenga formato básico usuario@dominio.ext"""
+    return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email))
 
 
 def sanitizar_texto(texto: str, max_largo: int = 200) -> str:
