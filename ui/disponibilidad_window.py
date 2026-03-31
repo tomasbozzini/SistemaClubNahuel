@@ -9,7 +9,7 @@ import tkinter as tk
 from tkcalendar import DateEntry
 from datetime import date, datetime, time, timedelta
 from auth.session import SessionManager
-from models.canchas_service import listar_canchas_activas
+from models.canchas_service import listar_canchas_con_precio
 from models.reservas_service import listar_reservas_por_fecha
 
 _COLOR       = "#00D68F"
@@ -210,16 +210,32 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         for w in self._body_frame.winfo_children():
             w.destroy()
 
-        canchas  = listar_canchas_activas()
+        canchas  = listar_canchas_con_precio()  # (id, nombre, tipo, precio, duracion_minutos)
         reservas = listar_reservas_por_fecha(fecha_date)
 
+        # Duración por cancha (en minutos)
+        dur_map = {c[0]: (c[4] or 60) for c in canchas}
+
         # Mapa de ocupación: {(cancha_id, slot) -> nombre_cliente}
+        # Un slot queda bloqueado si RESERVAR AHÍ generaría conflicto con la
+        # duración real de la cancha (no solo si el slot está "dentro" de otra reserva).
         ocupacion: dict[tuple, str] = {}
         all_slots = _slots()
+
+        def _to_min(hora_str: str) -> int:
+            h, m = map(int, hora_str.split(":"))
+            v = h * 60 + m
+            return 1440 if v == 0 else v  # 00:00 = fin de día
+
         for cid, _, hora_ini, hora_fin, cliente in reservas:
+            dur       = dur_map.get(cid, 60)
+            ini_min   = _to_min(hora_ini)
+            fin_min   = _to_min(hora_fin)
             for slot in all_slots:
                 try:
-                    if _t(hora_ini) < _t_end(slot) and _t(hora_fin) > _t(slot):
+                    slot_min     = _to_min(slot)
+                    slot_end_min = slot_min + dur
+                    if slot_min < fin_min and slot_end_min > ini_min:
                         ocupacion[(cid, slot)] = cliente
                 except ValueError:
                     continue
@@ -240,7 +256,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             row=0, column=0, padx=1, pady=1, sticky="nsew")
         self._hdr_frame.columnconfigure(0, minsize=_TIME_W)
 
-        for col, (cid, cname, ctype) in enumerate(canchas, 1):
+        for col, (cid, cname, ctype, _p, _d) in enumerate(canchas, 1):
             tipo_norm = ctype.lower().replace("á", "a").replace("ú", "u")
             tipo_color = {"padel": "#00C4FF", "futbol": "#A3F843", "tenis": "#FF8C42"}.get(tipo_norm, "#888888")
             tk.Label(self._hdr_frame,
@@ -271,7 +287,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
                 width=_TIME_W // 7, height=2, **lbl_kw).grid(
                 row=row, column=0, padx=1, pady=1, sticky="nsew")
 
-            for col, (cid, cname, ctype) in enumerate(canchas, 1):
+            for col, (cid, cname, ctype, _p, _d) in enumerate(canchas, 1):
                 key = (cid, slot)
                 if is_past:
                     bg, fg, txt = _BG_PASADO, _FG_PASADO, "—"
