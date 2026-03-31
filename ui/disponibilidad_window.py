@@ -140,14 +140,26 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         vsb = tk.Scrollbar(wrap, orient="vertical",   bg="#1C1C1C", troughcolor="#0D0D0D")
         hsb = tk.Scrollbar(wrap, orient="horizontal", bg="#1C1C1C", troughcolor="#0D0D0D")
 
-        # Header canvas: encabezados de canchas, no scroll vertical
-        self._hdr_canvas = tk.Canvas(wrap, bg=_BG_HEADER, highlightthickness=0,
+        # Fila superior: esquina fija + encabezados de canchas
+        top_row = tk.Frame(wrap, bg=_BG_HEADER)
+        self._corner = tk.Frame(top_row, bg=_BG_HEADER, width=_TIME_W, height=_CELL_H + 2)
+        self._corner.pack_propagate(False)
+        self._corner.pack(side="left")
+        self._hdr_canvas = tk.Canvas(top_row, bg=_BG_HEADER, highlightthickness=0,
                                      height=_CELL_H + 2)
+        self._hdr_canvas.pack(side="left", fill="x", expand=True)
 
-        # Body canvas: filas de horarios, scroll vertical y horizontal
-        self._body_canvas = tk.Canvas(wrap, bg="#0D0D0D", highlightthickness=0)
+        # Fila inferior: horarios fijos + celdas de canchas
+        bot_row = tk.Frame(wrap, bg="#0D0D0D")
+        self._time_canvas = tk.Canvas(bot_row, bg="#0D0D0D", highlightthickness=0,
+                                      width=_TIME_W)
+        self._time_canvas.pack(side="left", fill="y")
+        self._body_canvas = tk.Canvas(bot_row, bg="#0D0D0D", highlightthickness=0)
+        self._body_canvas.pack(side="left", fill="both", expand=True)
 
-        # Sincronización de scroll horizontal: hsb controla ambos canvases
+        # Sincronización de scroll
+        self._syncing_y = False
+
         def _xscroll(*args):
             self._hdr_canvas.xview(*args)
             self._body_canvas.xview(*args)
@@ -156,37 +168,59 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             hsb.set(*args)
             self._hdr_canvas.xview_moveto(args[0])
 
+        def _body_yview_changed(*args):
+            vsb.set(*args)
+            if not self._syncing_y:
+                self._syncing_y = True
+                self._time_canvas.yview_moveto(args[0])
+                self._syncing_y = False
+
+        def _time_yview_changed(*args):
+            if not self._syncing_y:
+                self._syncing_y = True
+                self._body_canvas.yview_moveto(args[0])
+                self._syncing_y = False
+
+        def _yscroll(*args):
+            self._body_canvas.yview(*args)
+            self._time_canvas.yview(*args)
+
         hsb.configure(command=_xscroll)
-        vsb.configure(command=self._body_canvas.yview)
-        self._hdr_canvas.configure(xscrollcommand=lambda *a: None)   # no actualiza hsb directamente
-        self._body_canvas.configure(yscrollcommand=vsb.set,
-                                    xscrollcommand=_body_xview_changed)
+        vsb.configure(command=_yscroll)
+        self._body_canvas.configure(
+            xscrollcommand=_body_xview_changed,
+            yscrollcommand=_body_yview_changed,
+        )
+        self._time_canvas.configure(yscrollcommand=_time_yview_changed)
 
         # Pack: vsb y hsb primero para que ocupen los bordes correctamente
         vsb.pack(side="right",  fill="y")
         hsb.pack(side="bottom", fill="x")
-        self._hdr_canvas.pack(side="top", fill="x")
-        self._body_canvas.pack(side="left", fill="both", expand=True)
+        top_row.pack(side="top", fill="x")
+        bot_row.pack(side="top", fill="both", expand=True)
 
         # Frames dentro de los canvases
         self._hdr_frame  = tk.Frame(self._hdr_canvas,  bg=_BG_HEADER)
+        self._time_frame = tk.Frame(self._time_canvas, bg="#0D0D0D")
         self._body_frame = tk.Frame(self._body_canvas, bg="#0D0D0D")
 
-        self._hdr_win  = self._hdr_canvas.create_window((0, 0), window=self._hdr_frame,  anchor="nw")
-        self._body_win = self._body_canvas.create_window((0, 0), window=self._body_frame, anchor="nw")
+        self._hdr_canvas.create_window( (0, 0), window=self._hdr_frame,  anchor="nw")
+        self._time_canvas.create_window((0, 0), window=self._time_frame, anchor="nw")
+        self._body_canvas.create_window((0, 0), window=self._body_frame, anchor="nw")
 
         self._hdr_frame.bind("<Configure>",
             lambda e: self._hdr_canvas.configure(scrollregion=self._hdr_canvas.bbox("all")))
+        self._time_frame.bind("<Configure>",
+            lambda e: self._time_canvas.configure(scrollregion=self._time_canvas.bbox("all")))
         self._body_frame.bind("<Configure>",
             lambda e: self._body_canvas.configure(scrollregion=self._body_canvas.bbox("all")))
 
-        # Rueda del mouse → scroll vertical del body
-        # Se usa bind_all dentro de la ventana; se desregistra al cerrar
-        self._mw_binding = self.bind_all(
-            "<MouseWheel>",
-            lambda e: self._body_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
-            add="+"
-        )
+        def _on_mousewheel(e):
+            units = int(-1 * (e.delta / 120))
+            self._body_canvas.yview_scroll(units, "units")
+            self._time_canvas.yview_scroll(units, "units")
+
+        self._mw_binding = self.bind_all("<MouseWheel>", _on_mousewheel, add="+")
 
         self._refrescar()
         self._iniciar_auto_refresh()
@@ -206,6 +240,8 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
 
     def _build_grid(self, fecha_date: date):
         for w in self._hdr_frame.winfo_children():
+            w.destroy()
+        for w in self._time_frame.winfo_children():
             w.destroy()
         for w in self._body_frame.winfo_children():
             w.destroy()
@@ -259,12 +295,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         lbl_kw = {"font": ("Arial", 9, "bold"), "anchor": "center", "relief": "flat", "bd": 0}
 
         # ── Encabezado de canchas (en hdr_frame) ──────────────────────────────
-        tk.Label(self._hdr_frame, text="", bg=_BG_HEADER, fg=_FG_HEADER,
-                 width=_TIME_W // 7, height=2, **lbl_kw).grid(
-            row=0, column=0, padx=1, pady=1, sticky="nsew")
-        self._hdr_frame.columnconfigure(0, minsize=_TIME_W)
-
-        for col, (cid, cname, ctype, _p, _d) in enumerate(canchas, 1):
+        for col, (cid, cname, ctype, _p, _d) in enumerate(canchas):
             tipo_norm = ctype.lower().replace("á", "a").replace("ú", "u")
             tipo_color = {"padel": "#00C4FF", "futbol": "#A3F843", "tenis": "#FF8C42"}.get(tipo_norm, "#888888")
             tk.Label(self._hdr_frame,
@@ -275,8 +306,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             self._hdr_frame.columnconfigure(col, minsize=cw)
 
         # ── Filas de horarios (en body_frame) ─────────────────────────────────
-        self._body_frame.columnconfigure(0, minsize=_TIME_W)
-        for col in range(1, len(canchas) + 1):
+        for col in range(len(canchas)):
             self._body_frame.columnconfigure(col, minsize=cw)
 
         for row, slot in enumerate(all_slots):
@@ -290,12 +320,13 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             time_bg = "#1C1C1C" if is_now else ("#0D0D0D" if is_past else "#111111")
             time_fg = _COLOR    if is_now else (_FG_PASADO if is_past else "#555555")
 
-            tk.Label(self._body_frame, text=slot,
+            # Horario en el canvas fijo de tiempo
+            tk.Label(self._time_frame, text=slot,
                 bg=time_bg, fg=time_fg,
                 width=_TIME_W // 7, height=2, **lbl_kw).grid(
                 row=row, column=0, padx=1, pady=1, sticky="nsew")
 
-            for col, (cid, cname, ctype, _p, _d) in enumerate(canchas, 1):
+            for col, (cid, cname, ctype, _p, _d) in enumerate(canchas):
                 key = (cid, slot)
                 if is_past:
                     bg, fg, txt = _BG_PASADO, _FG_PASADO, "—"
@@ -315,8 +346,10 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
 
         # Actualizar scroll regions
         self._hdr_frame.update_idletasks()
+        self._time_frame.update_idletasks()
         self._body_frame.update_idletasks()
         self._hdr_canvas.configure(scrollregion=self._hdr_canvas.bbox("all"))
+        self._time_canvas.configure(scrollregion=self._time_canvas.bbox("all"))
         self._body_canvas.configure(scrollregion=self._body_canvas.bbox("all"))
 
     def _abrir_nueva_reserva(self):
