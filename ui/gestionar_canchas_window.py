@@ -3,14 +3,15 @@ import customtkinter as ctk
 from ui.ventana_mixin import VentanaMixin
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
-from models.canchas_service import listar_canchas, insertar_cancha, eliminar_cancha, existe_cancha
+from models.canchas_service import (
+    listar_canchas_con_precio, insertar_cancha, eliminar_cancha,
+    existe_cancha, actualizar_duracion_cancha,
+)
 from utils.validaciones import sanitizar_texto
 
 _TIPOS_VALIDOS = {"Fútbol", "Pádel", "Tenis"}
-
-_COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
-               "fútbol": "#A3F843", "futbol": "#A3F843",
-               "tenis": "#FF8C42"}
+_DURACION_DEFAULT = {"Fútbol": 60, "Pádel": 90, "Tenis": 60}
+_DURACIONES = ["30", "45", "60", "75", "90", "120"]
 
 
 class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
@@ -23,7 +24,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Gestionar Canchas")
-        width, height = 680, 580
+        width, height = 740, 640
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth() // 2) - (width  // 2)
@@ -33,21 +34,21 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")
 
-        # Barra de acento orange (color de "canchas")
+        self._cancha_sel_id = None
+
         ctk.CTkFrame(self, height=4, fg_color="#FF8C42", corner_radius=0).pack(fill="x")
 
-        # Header
         hdr = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
         hdr.pack(fill="x")
         ctk.CTkLabel(hdr, text="GESTIONAR CANCHAS",
             font=("Arial Black", 20, "bold"), text_color="#FFFFFF").pack(
             anchor="w", padx=28, pady=(16, 2))
-        ctk.CTkLabel(hdr, text="Agregá o eliminá canchas del club",
+        ctk.CTkLabel(hdr, text="Agregá, eliminá o modificá la duración de las canchas",
             font=("Arial", 11), text_color="#FF8C42").pack(anchor="w", padx=28, pady=(0, 14))
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
-        # ── Formulario ───────────────────────────────────────────────────────
+        # ── Formulario agregar ────────────────────────────────────────────────
         form_card = ctk.CTkFrame(self, fg_color="#141414", corner_radius=0)
         form_card.pack(fill="x")
 
@@ -55,6 +56,10 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         fila.pack(padx=24, pady=18, fill="x")
 
         lbl_kw = {"font": ("Arial", 10, "bold"), "text_color": "#555555", "anchor": "w"}
+        combo_kw = dict(fg_color="#1A1A1A", border_color="#252525", border_width=1,
+            text_color="#FFFFFF", button_color="#252525", button_hover_color="#FF8C42",
+            dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
+            corner_radius=10, height=40)
 
         col_nombre = ctk.CTkFrame(fila, fg_color="transparent")
         col_nombre.pack(side="left", expand=True, fill="x", padx=(0, 10))
@@ -68,12 +73,17 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         col_tipo.pack(side="left", expand=False, fill="x", padx=(0, 10))
         ctk.CTkLabel(col_tipo, text="TIPO", **lbl_kw).pack(anchor="w", pady=(0, 4))
         self.combo_tipo = ctk.CTkComboBox(col_tipo, values=["Fútbol", "Pádel", "Tenis"],
-            width=150, fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", button_color="#252525", button_hover_color="#FF8C42",
-            dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
-            corner_radius=10, height=40)
+            width=140, command=self._on_tipo_change, **combo_kw)
         self.combo_tipo.set("Pádel")
         self.combo_tipo.pack(fill="x")
+
+        col_dur = ctk.CTkFrame(fila, fg_color="transparent")
+        col_dur.pack(side="left", expand=False, fill="x", padx=(0, 10))
+        ctk.CTkLabel(col_dur, text="DURACIÓN (min)", **lbl_kw).pack(anchor="w", pady=(0, 4))
+        self.combo_dur = ctk.CTkComboBox(col_dur, values=_DURACIONES,
+            width=120, **combo_kw)
+        self.combo_dur.set("90")
+        self.combo_dur.pack(fill="x")
 
         ctk.CTkButton(fila, text="+ AGREGAR", command=self.agregar_cancha,
             fg_color="#FF8C42", hover_color="#FFA066", text_color="#0D0D0D",
@@ -82,7 +92,36 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
-        # ── Lista ────────────────────────────────────────────────────────────
+        # ── Editar duración de cancha seleccionada ────────────────────────────
+        self._edit_card = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
+        self._edit_card.pack(fill="x")
+
+        edit_row = ctk.CTkFrame(self._edit_card, fg_color="transparent")
+        edit_row.pack(padx=24, pady=12, fill="x")
+
+        self._lbl_sel = ctk.CTkLabel(edit_row,
+            text="Seleccioná una cancha de la lista para editar su duración",
+            font=("Arial", 10), text_color="#333333", anchor="w")
+        self._lbl_sel.pack(side="left", expand=True, fill="x")
+
+        self._combo_dur_edit = ctk.CTkComboBox(edit_row, values=_DURACIONES,
+            width=120, **combo_kw)
+        self._combo_dur_edit.pack(side="left", padx=(10, 8))
+        self._combo_dur_edit.set("60")
+
+        self._btn_actualizar = ctk.CTkButton(edit_row, text="ACTUALIZAR DURACIÓN",
+            command=self._actualizar_duracion,
+            fg_color="transparent", hover_color="#1A1A00",
+            text_color="#FFD700", border_color="#2A2A00", border_width=1,
+            corner_radius=10, width=180, height=36,
+            font=("Arial", 11, "bold"),
+            state="disabled",
+        )
+        self._btn_actualizar.pack(side="left")
+
+        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
+
+        # ── Lista ─────────────────────────────────────────────────────────────
         list_card = ctk.CTkFrame(self, fg_color="#0F0F0F", corner_radius=0)
         list_card.pack(fill="both", expand=True)
 
@@ -95,13 +134,13 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         tree_frame = ctk.CTkFrame(list_card, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=14)
 
-        cols = ("ID", "Nombre", "Tipo")
+        cols = ("ID", "Nombre", "Tipo", "Duración (min)")
         self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings",
-            style="Club.Treeview", height=8)
-        widths = {"ID": 55, "Nombre": 310, "Tipo": 210}
+            style="Club.Treeview", height=7)
+        widths = {"ID": 50, "Nombre": 260, "Tipo": 160, "Duración (min)": 120}
         for c in cols:
             self.tree.heading(c, text=c)
-            self.tree.column(c, width=widths.get(c, 120), anchor="center")
+            self.tree.column(c, width=widths.get(c, 100), anchor="center")
 
         scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview,
             style="Club.Vertical.TScrollbar")
@@ -109,12 +148,12 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Tags por tipo
         self.tree.tag_configure("padel",  foreground="#00C4FF")
         self.tree.tag_configure("futbol", foreground="#A3F843")
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
 
-        # Botón eliminar
+        self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)
+
         ctk.CTkFrame(list_card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(10, 0))
         ctk.CTkButton(list_card, text="ELIMINAR CANCHA SELECCIONADA",
@@ -146,17 +185,56 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             background="#1C1C1C", troughcolor="#0F0F0F",
             arrowcolor="#333333", borderwidth=0)
 
+    def _on_tipo_change(self, valor: str):
+        default = _DURACION_DEFAULT.get(valor, 60)
+        self.combo_dur.set(str(default))
+
+    def _on_seleccion(self, _event):
+        sel = self.tree.selection()
+        if not sel:
+            self._cancha_sel_id = None
+            self._lbl_sel.configure(text="Seleccioná una cancha de la lista para editar su duración",
+                text_color="#333333")
+            self._btn_actualizar.configure(state="disabled")
+            return
+        v = self.tree.item(sel[0], "values")
+        self._cancha_sel_id = int(v[0])
+        nombre   = v[1]
+        duracion = v[3]
+        self._lbl_sel.configure(text=f"Cancha seleccionada:  {nombre}", text_color="#FFFFFF")
+        self._combo_dur_edit.set(str(duracion))
+        self._btn_actualizar.configure(state="normal")
+
+    def _actualizar_duracion(self):
+        if not self._cancha_sel_id:
+            return
+        try:
+            dur = int(self._combo_dur_edit.get())
+        except ValueError:
+            messagebox.showwarning("Error", "Duración inválida.")
+            return
+        actualizar_duracion_cancha(self._cancha_sel_id, dur)
+        self.cargar_canchas()
+        messagebox.showinfo("Listo", f"Duración actualizada a {dur} minutos.\nLas nuevas reservas usarán esta duración.")
+
     def cargar_canchas(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
-        for fila in listar_canchas():
-            tipo_raw = fila[2].lower().replace("á", "a").replace("ú", "u")
+        for fila in listar_canchas_con_precio():
+            # fila = (id, nombre, tipo, precio, duracion_minutos)
+            cid, nombre, tipo, _, duracion = fila
+            tipo_raw = tipo.lower().replace("á", "a").replace("ú", "u")
             tag = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
-            self.tree.insert("", "end", values=fila[:3], tags=(tag,))
+            self.tree.insert("", "end", values=(cid, nombre, tipo.capitalize(), duracion), tags=(tag,))
 
     def agregar_cancha(self):
         nombre = sanitizar_texto(self.entry_nombre.get(), max_largo=100)
         tipo   = self.combo_tipo.get().strip()
+        try:
+            duracion = int(self.combo_dur.get())
+        except ValueError:
+            messagebox.showwarning("Error", "Duración inválida.")
+            return
         if not nombre or not tipo:
             messagebox.showwarning("Error", "Completá todos los campos.")
             return
@@ -166,7 +244,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if existe_cancha(nombre):
             messagebox.showerror("Error", "Ya existe una cancha con ese nombre.")
             return
-        insertar_cancha(nombre, tipo)
+        insertar_cancha(nombre, tipo, duracion)
         self.entry_nombre.delete(0, "end")
         self.cargar_canchas()
 
@@ -179,4 +257,9 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         cancha_id, nombre = cancha[0], cancha[1]
         if messagebox.askyesno("Confirmar", f"¿Eliminar la cancha '{nombre}'?"):
             eliminar_cancha(cancha_id)
+            self._cancha_sel_id = None
+            self._btn_actualizar.configure(state="disabled")
+            self._lbl_sel.configure(
+                text="Seleccioná una cancha de la lista para editar su duración",
+                text_color="#333333")
             self.cargar_canchas()
