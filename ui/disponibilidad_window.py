@@ -216,10 +216,11 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         # Duración por cancha (en minutos)
         dur_map = {c[0]: (c[4] or 60) for c in canchas}
 
-        # Mapa de ocupación: {(cancha_id, slot) -> nombre_cliente}
-        # Un slot queda bloqueado si RESERVAR AHÍ generaría conflicto con la
-        # duración real de la cancha (no solo si el slot está "dentro" de otra reserva).
-        ocupacion: dict[tuple, str] = {}
+        # Dos mapas:
+        #   ocupacion_activa:   slot cubierto por la reserva → muestra nombre del cliente
+        #   ocupacion_bloqueada: slot previo que generaría conflicto → rojo sin nombre
+        ocupacion_activa:    dict[tuple, str] = {}
+        ocupacion_bloqueada: set[tuple]       = set()
         all_slots = _slots()
 
         def _to_min(hora_str: str) -> int:
@@ -228,15 +229,22 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             return 1440 if v == 0 else v  # 00:00 = fin de día
 
         for cid, _, hora_ini, hora_fin, cliente in reservas:
-            dur       = dur_map.get(cid, 60)
-            ini_min   = _to_min(hora_ini)
-            fin_min   = _to_min(hora_fin)
+            dur     = dur_map.get(cid, 60)
+            ini_min = _to_min(hora_ini)
+            fin_min = _to_min(hora_fin)
             for slot in all_slots:
                 try:
-                    slot_min     = _to_min(slot)
-                    slot_end_min = slot_min + dur
-                    if slot_min < fin_min and slot_end_min > ini_min:
-                        ocupacion[(cid, slot)] = cliente
+                    slot_min      = _to_min(slot)
+                    slot_end_30   = slot_min + _SLOT_MINUTES   # fin del bloque de 30 min
+                    slot_end_dur  = slot_min + dur              # fin si reservara acá
+                    # ¿El slot está dentro de la reserva existente?
+                    cubierto      = ini_min < slot_end_30 and fin_min > slot_min
+                    # ¿Reservar acá generaría conflicto?
+                    conflicto     = slot_min < fin_min and slot_end_dur > ini_min
+                    if cubierto:
+                        ocupacion_activa[(cid, slot)] = cliente
+                    elif conflicto:
+                        ocupacion_bloqueada.add((cid, slot))
                 except ValueError:
                     continue
 
@@ -291,10 +299,12 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
                 key = (cid, slot)
                 if is_past:
                     bg, fg, txt = _BG_PASADO, _FG_PASADO, "—"
-                elif key in ocupacion:
-                    cliente = ocupacion[key]
+                elif key in ocupacion_activa:
+                    cliente = ocupacion_activa[key]
                     txt = cliente[:15] + "…" if len(cliente) > 15 else cliente
                     bg, fg = _BG_OCUPADO, _FG_OCUPADO
+                elif key in ocupacion_bloqueada:
+                    bg, fg, txt = _BG_OCUPADO, "#3A1A1A", "—"
                 else:
                     bg, fg, txt = _BG_LIBRE, _FG_LIBRE, "LIBRE"
 
