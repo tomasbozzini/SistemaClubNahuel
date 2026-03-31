@@ -20,7 +20,7 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Gestión de Usuarios — Club Nahuel")
-        width, height = 760, 600
+        width, height = 760, 645
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
