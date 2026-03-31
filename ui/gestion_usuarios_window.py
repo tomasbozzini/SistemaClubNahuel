@@ -20,7 +20,7 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Gestión de Usuarios — Club Nahuel")
-        width, height = 760, 645
+        width, height = 760, 680
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
@@ -270,9 +270,9 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
             return
         messagebox.showinfo(
             "Contraseña restablecida",
-            f"Nueva contraseña temporal para '{nombre}':\n\n"
+            f"Nueva contraseña para '{nombre}':\n\n"
             f"  {nueva}\n\n"
-            "Comunicásela al usuario y pedile que la cambie al ingresar."
+            "Anotala y comunicásela al usuario para que pueda ingresar."
         )
 
     def _eliminar(self):
