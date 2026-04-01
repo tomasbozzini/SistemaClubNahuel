@@ -77,7 +77,7 @@ def listar_reservas() -> list[tuple]:
 def listar_reservas_por_fecha(fecha_date) -> list[tuple]:
     """
     Retorna reservas confirmadas para una fecha específica.
-    [(cancha_id, cancha_nombre, hora_inicio_str, hora_fin_str, nombre_cliente), ...]
+    [(cancha_id, cancha_nombre, hora_inicio_str, hora_fin_str, nombre_cliente, tipo), ...]
     """
     with get_connection() as session:
         filas = (
@@ -94,6 +94,7 @@ def listar_reservas_por_fecha(fecha_date) -> list[tuple]:
                 str(r.hora_inicio)[:5],
                 str(r.hora_fin)[:5],
                 r.nombre_cliente,
+                c.tipo,
             )
             for r, c in filas
         ]
