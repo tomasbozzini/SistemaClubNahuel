@@ -1,12 +1,22 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files
 
+datas = []
+datas += collect_data_files('customtkinter')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
-    hiddenimports=[],
+    datas=datas,
+    hiddenimports=[
+        'bcrypt',
+        'psycopg2',
+        'psycopg2.extensions',
+        'psycopg2._psycopg',
+        'sqlalchemy.dialects.postgresql',
+        'sqlalchemy.dialects.postgresql.psycopg2',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
