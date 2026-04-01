@@ -4,7 +4,7 @@ from ui.ventana_mixin import VentanaMixin
 from tkcalendar import Calendar
 from datetime import datetime
 from auth.session import SessionManager
-from models.reservas_service import listar_reservas
+from models.reservas_service import listar_reservas_por_fecha
 
 _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
                "fútbol": "#A3F843", "futbol": "#A3F843",
@@ -140,12 +140,22 @@ class CalendarioWindow(VentanaMixin, ctk.CTkToplevel):
         for w in self.scroll_frame.winfo_children():
             w.destroy()
 
-        reservas = [r for r in listar_reservas() if r[4] == fecha]
+        from datetime import datetime as _dt
+        fecha_date = _dt.strptime(fecha, "%Y-%m-%d").date()
+        # listar_reservas_por_fecha devuelve:
+        # (cancha_id, cancha_nombre, hora_ini, hora_fin, cliente, tipo)
+        raw = listar_reservas_por_fecha(fecha_date)
+        # Convertir al formato que espera el resto del método:
+        # (id, cliente, cancha, tipo, fecha, hora, notas)
+        reservas = [
+            (None, r[4], r[1], r[5] if len(r) > 5 else "", fecha, r[2], "")
+            for r in raw
+        ]
 
         if self.orden_por_deporte:
-            reservas.sort(key=lambda r: (r[3], datetime.strptime(r[5], "%H:%M")))
+            reservas.sort(key=lambda r: (r[3], _dt.strptime(r[5], "%H:%M")))
         else:
-            reservas.sort(key=lambda r: datetime.strptime(r[5], "%H:%M"))
+            reservas.sort(key=lambda r: _dt.strptime(r[5], "%H:%M"))
 
         n = len(reservas)
         self.lbl_n_reservas.configure(

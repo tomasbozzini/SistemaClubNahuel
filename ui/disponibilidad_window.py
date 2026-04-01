@@ -264,7 +264,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             v = h * 60 + m
             return 1440 if v == 0 else v  # 00:00 = fin de día
 
-        for cid, _, hora_ini, hora_fin, cliente in reservas:
+        for cid, _, hora_ini, hora_fin, cliente, *__ in reservas:
             dur     = dur_map.get(cid, 60)
             ini_min = _to_min(hora_ini)
             fin_min = _to_min(hora_fin)
