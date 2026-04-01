@@ -26,6 +26,7 @@ def _duracion_cancha(cancha: Cancha) -> timedelta:
 def listar_reservas() -> list[tuple]:
     """
     Retorna reservas con estado != 'completada'.
+    Para series recurrentes, muestra solo la próxima fecha (la más cercana).
     Tupla: (id[0], nombre_cliente[1], cancha_nombre[2], tipo[3], fecha[4],
              hora_inicio[5], notas[6], telefono_cliente[7],
              estado_pago[8], grupo_recurrente_id[9])
@@ -38,6 +39,23 @@ def listar_reservas() -> list[tuple]:
             .order_by(Reserva.fecha, Reserva.hora_inicio)
             .all()
         )
+        # Contar cuántas ocurrencias quedan por grupo recurrente
+        conteo_grupo: dict[int, int] = {}
+        for r, c in filas:
+            if r.grupo_recurrente_id:
+                conteo_grupo[r.grupo_recurrente_id] = conteo_grupo.get(r.grupo_recurrente_id, 0) + 1
+
+        # Para reservas recurrentes: mostrar solo la próxima ocurrencia por grupo
+        grupos_vistos: set[int] = set()
+        resultado = []
+        for r, c in filas:
+            if r.grupo_recurrente_id:
+                if r.grupo_recurrente_id not in grupos_vistos:
+                    grupos_vistos.add(r.grupo_recurrente_id)
+                    resultado.append((r, c))
+            else:
+                resultado.append((r, c))
+
         return [
             (
                 r.id,
@@ -50,8 +68,9 @@ def listar_reservas() -> list[tuple]:
                 r.telefono_cliente or "",
                 r.estado_pago or "pendiente",
                 r.grupo_recurrente_id,
+                conteo_grupo.get(r.grupo_recurrente_id, 0) if r.grupo_recurrente_id else 0,
             )
-            for r, c in filas
+            for r, c in resultado
         ]
 
 
