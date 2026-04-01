@@ -7,6 +7,8 @@ from ui.reservas_window import ReservasWindow
 from ui.ver_reservas_window import VerReservasWindow
 from ui.calendario_reservas_window import CalendarioWindow
 from ui.ventana_mixin import InactividadMixin
+from ui.gestionar_canchas_window import GestionarCanchasWindow
+from ui.clientes_window import ClientesWindow
 from sync.poller import ReservasPoller, EventoActualizacion, EventoError, EventoReconexion
 
 POLL_CHECK_MS = 500
@@ -19,6 +21,7 @@ _COLOR = {
     "canchas":        "#FF8C42",
     "finanzas":       "#FFD700",
     "disponibilidad": "#00D68F",
+    "clientes":       "#9D6EFF",
 }
 
 
@@ -32,7 +35,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             return
 
         self.title("Sistema de Reservas - Club Nahuel")
-        width, height = 900, 800
+        width, height = 900, 920
         self.geometry(f"{width}x{height}")
         self.update_idletasks()
         x = (self.winfo_screenwidth()  // 2) - (width  // 2)
@@ -104,14 +107,16 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
         cards_frame.pack(pady=26)
 
-        self._crear_card(cards_frame, "NUEVA RESERVA",      "Registrá un nuevo turno",       "✦", _COLOR["reserva"],    self.abrir_registrar,  0, 0)
-        self._crear_card(cards_frame, "VER RESERVAS",       "Listado completo de turnos",    "≡", _COLOR["ver"],        self.abrir_ver,        0, 1)
-        self._crear_card(cards_frame, "CALENDARIO",         "Vista mensual de reservas",     "◉", _COLOR["calendario"], self.abrir_calendario, 1, 0)
-        self._crear_card(cards_frame, "HISTORIAL FINANCIERO","Registros y totales recaudados","$", _COLOR["finanzas"],   self.abrir_finanzas,   1, 1)
+        self._crear_card(cards_frame, "NUEVA RESERVA",       "Registrá un nuevo turno",        "✦", _COLOR["reserva"],    self.abrir_registrar,   0, 0)
+        self._crear_card(cards_frame, "VER RESERVAS",        "Listado completo de turnos",     "≡", _COLOR["ver"],        self.abrir_ver,         0, 1)
+        self._crear_card(cards_frame, "CALENDARIO",          "Vista mensual de reservas",      "◉", _COLOR["calendario"], self.abrir_calendario,  1, 0)
+        self._crear_card(cards_frame, "HISTORIAL FINANCIERO","Registros y totales recaudados", "$", _COLOR["finanzas"],   self.abrir_finanzas,    1, 1)
+        self._crear_card(cards_frame, "GESTIONAR CANCHAS",   "Alta, baja y bloqueos",          "⬡", _COLOR["canchas"],    self.abrir_canchas,     2, 0)
+        self._crear_card(cards_frame, "CLIENTES",            "Agenda de clientes frecuentes",  "✎", _COLOR["clientes"],   self.abrir_clientes,    2, 1)
 
         # Card DISPONIBILIDAD — ancho completo
         dispon_wrap = ctk.CTkFrame(cards_frame, fg_color="transparent")
-        dispon_wrap.grid(row=2, column=0, columnspan=2, padx=11, pady=(0, 4))
+        dispon_wrap.grid(row=3, column=0, columnspan=2, padx=11, pady=(0, 4))
         self._crear_card_wide(dispon_wrap, "DISPONIBILIDAD",
             "Vista en tiempo real de canchas y horarios", "◎",
             _COLOR["disponibilidad"], self.abrir_disponibilidad)
@@ -333,6 +338,12 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
     def abrir_finanzas(self):
         from ui.financiero_window import FinancieroWindow
         FinancieroWindow(self)
+
+    def abrir_canchas(self):
+        GestionarCanchasWindow(self)
+
+    def abrir_clientes(self):
+        ClientesWindow(self)
 
     def abrir_disponibilidad(self):
         from ui.disponibilidad_window import DisponibilidadWindow
