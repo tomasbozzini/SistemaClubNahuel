@@ -47,11 +47,17 @@ class _AutocompletePopup(ctk.CTkToplevel):
                 if self.winfo_exists():
                     self.destroy()
 
-            row.bind("<Button-1>", lambda e, f=_sel: f())
-            for w_widget in row.winfo_children():
-                w_widget.bind("<Button-1>", lambda e, f=_sel: f())
             row.bind("<Enter>", lambda e, r=row: r.configure(fg_color="#252525"))
             row.bind("<Leave>", lambda e, r=row: r.configure(fg_color="#1A1A1A"))
+
+            # Bind recursivo: CTkLabel tiene widgets internos anidados;
+            # hay que llegar al tkinter.Label real para capturar el click.
+            def _bind_recursive(widget, callback):
+                widget.bind("<Button-1>", lambda e: callback())
+                for child in widget.winfo_children():
+                    _bind_recursive(child, callback)
+
+            self.after(1, lambda r=row, s=_sel: _bind_recursive(r, s))
 
 
 class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
