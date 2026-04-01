@@ -4,6 +4,9 @@ if __name__ == "__main__":
     from tkinter import messagebox
 
     try:
+        from db.migracion_v2 import migrar
+        migrar()
+
         from ui.login_window import LoginWindow
         app = LoginWindow()
         app.mainloop()
