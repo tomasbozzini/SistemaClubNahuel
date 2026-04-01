@@ -21,8 +21,12 @@ def migrar():
             conn.commit()
 
         # Crear tablas nuevas (clientes, bloqueos_cancha)
-        import models.cliente       # noqa: F401
-        import models.bloqueo_cancha  # noqa: F401
+        import models.usuario        # noqa: F401
+        import models.cancha         # noqa: F401
+        import models.reserva        # noqa: F401
+        import models.log_acceso     # noqa: F401
+        import models.cliente        # noqa: F401
+        import models.bloqueo_cancha # noqa: F401
         Base.metadata.create_all(bind=engine)
 
     except Exception as e:
