@@ -242,16 +242,19 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
             filas = sorted(filas, key=lambda f: (f[3].lower(), f[4], f[5]))
         for f in filas:
             # f: (id[0], cliente[1], cancha[2], tipo[3], fecha[4], hora[5],
-            #     notas[6], telefono[7], estado_pago[8], grupo_recurrente_id[9])
+            #     notas[6], telefono[7], estado_pago[8], grupo_recurrente_id[9], total_serie[10])
             tipo_raw  = f[3].lower().replace("á", "a").replace("ú", "u")
             tag       = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
             pago_text = _LABEL_PAGO.get(f[8], f[8])
-            recurrente_mark = " ↺" if f[9] else ""
+            total_serie = f[10] if len(f) > 10 else 0
+            if total_serie > 1:
+                notas_text = f"↺ {total_serie} fechas" + (f"  |  {f[6]}" if f[6] else "")
+            else:
+                notas_text = f[6]
             display = (
-                str(f[0]) + recurrente_mark,
-                f[1], f[7], f[2], f[3], f[4], f[5],
+                f[0], f[1], f[7], f[2], f[3], f[4], f[5],
                 pago_text,
-                f[6],
+                notas_text,
             )
             self.tree.insert("", tk.END, values=display, tags=(tag,))
         n = len(filas)
@@ -262,9 +265,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         sel = self.tree.selection()
         if not sel:
             return None
-        # El ID en el tree puede tener " ↺", extraer número
-        raw_id = str(self.tree.item(sel[0])["values"][0]).replace(" ↺", "")
-        reserva_id = int(raw_id)
+        reserva_id = int(self.tree.item(sel[0])["values"][0])
         return next((f for f in self._filas if f[0] == reserva_id), None)
 
     def _exportar_excel(self):
