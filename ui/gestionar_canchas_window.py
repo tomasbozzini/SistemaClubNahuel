@@ -227,6 +227,26 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
+        # Botones de acción sobre bloqueos — encima de la lista
+        barra_bloqueos = ctk.CTkFrame(self, fg_color="transparent")
+        barra_bloqueos.pack(fill="x")
+
+        ctk.CTkButton(barra_bloqueos, text="TERMINAR MANTENIMIENTO HOY",
+            command=self._finalizar_mantenimiento_hoy,
+            fg_color="transparent", hover_color="#1A1200",
+            text_color="#FFD700", border_color="#2A2200", border_width=1,
+            corner_radius=0, height=36, font=("Arial", 11, "bold"),
+        ).pack(side="left", fill="x", expand=True)
+
+        ctk.CTkButton(barra_bloqueos, text="ELIMINAR BLOQUEO",
+            command=self._quitar_bloqueo,
+            fg_color="transparent", hover_color="#1A0000",
+            text_color="#FF5C5C", border_color="#2A0000", border_width=1,
+            corner_radius=0, height=36, width=180, font=("Arial", 11, "bold"),
+        ).pack(side="right")
+
+        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
+
         # Lista de bloqueos
         blist_card = ctk.CTkFrame(self, fg_color="#0F0F0F", corner_radius=0)
         blist_card.pack(fill="both", expand=True)
@@ -251,26 +271,6 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.btree.configure(yscrollcommand=scrollbar_b.set)
         self.btree.pack(side="left", fill="both", expand=True)
         scrollbar_b.pack(side="right", fill="y")
-
-        ctk.CTkFrame(blist_card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
-            fill="x", pady=(8, 0))
-
-        barra_bloqueos = ctk.CTkFrame(blist_card, fg_color="transparent")
-        barra_bloqueos.pack(fill="x")
-
-        ctk.CTkButton(barra_bloqueos, text="TERMINAR MANTENIMIENTO HOY",
-            command=self._finalizar_mantenimiento_hoy,
-            fg_color="transparent", hover_color="#1A1200",
-            text_color="#FFD700", border_color="#2A2200", border_width=1,
-            corner_radius=0, height=36, font=("Arial", 11, "bold"),
-        ).pack(side="left", fill="x", expand=True)
-
-        ctk.CTkButton(barra_bloqueos, text="ELIMINAR BLOQUEO",
-            command=self._quitar_bloqueo,
-            fg_color="transparent", hover_color="#1A0000",
-            text_color="#FF5C5C", border_color="#2A0000", border_width=1,
-            corner_radius=0, height=36, width=180, font=("Arial", 11, "bold"),
-        ).pack(side="right")
 
         self.cargar_canchas()
         self._cargar_bloqueos()
