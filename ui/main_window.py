@@ -35,11 +35,23 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             return
 
         self.title("Sistema de Reservas - Club Nahuel")
-        width, height = 900, 920
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
+        from ui.ventana_mixin import _get_work_area
+        work_w, work_h = _get_work_area(self)
+
+        # "full" ≥ 850 | "compact" 750-849 | "mini" < 750
+        if work_h >= 850:
+            self._size = "full"
+            width, height = 900, min(920, work_h - 20)
+        elif work_h >= 750:
+            self._size = "compact"
+            width, height = 860, min(760, work_h - 20)
+        else:
+            self._size = "mini"
+            width, height = 820, min(680, work_h - 20)
+
+        x = (work_w // 2) - (width  // 2)
+        y = (work_h // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")
@@ -55,6 +67,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         self._procesar_cola_sync()
 
         self._iniciar_monitor_inactividad()
+        self.after(2000, self._verificar_actualizacion)
 
         self.protocol("WM_DELETE_WINDOW", self._cerrar)
         self.deiconify()
@@ -71,41 +84,49 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         header_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
         header_frame.pack(fill="x")
 
+        size = self._size  # "full" | "compact" | "mini"
         inner_header = ctk.CTkFrame(header_frame, fg_color="transparent")
-        inner_header.pack(pady=(22, 18))
+        hpad = {"full": (22, 18), "compact": (12, 10), "mini": (6, 6)}[size]
+        inner_header.pack(pady=hpad)
 
         logo_path = "assets/logoclubnahuel.png"
+        logo_size = {"full": (88, 72), "compact": (68, 56), "mini": (52, 42)}[size]
         logo_img = CTkImage(
             light_image=Image.open(logo_path),
             dark_image=Image.open(logo_path),
-            size=(88, 72)
+            size=logo_size
         )
         ctk.CTkLabel(inner_header, image=logo_img, text="").pack()
+        title_font = {"full": 32, "compact": 24, "mini": 20}[size]
+        title_pady = {"full": (8, 0), "compact": (6, 0), "mini": (4, 0)}[size]
         ctk.CTkLabel(
             inner_header, text="CLUB NAHUEL",
-            font=("Arial Black", 32, "bold"), text_color="#FFFFFF"
-        ).pack(pady=(8, 0))
-        ctk.CTkLabel(
-            inner_header, text="S I S T E M A   D E   R E S E R V A S",
-            font=("Arial", 10), text_color="#A3F843"
-        ).pack(pady=(3, 0))
+            font=("Arial Black", title_font, "bold"), text_color="#FFFFFF"
+        ).pack(pady=title_pady)
+        if size != "mini":
+            ctk.CTkLabel(
+                inner_header, text="S I S T E M A   D E   R E S E R V A S",
+                font=("Arial", 10), text_color="#A3F843"
+            ).pack(pady=(2, 0))
 
         # Chip de usuario
         rol_color = "#A3F843" if usuario.rol == "admin" else "#00C4FF"
         chip = ctk.CTkFrame(inner_header, fg_color="#1A1A1A", corner_radius=20,
             border_width=1, border_color="#2A2A2A")
-        chip.pack(pady=(12, 0))
+        chip_pady = {"full": (12, 0), "compact": (8, 0), "mini": (5, 0)}[size]
+        chip.pack(pady=chip_pady)
         ctk.CTkLabel(
             chip,
             text=f"  {usuario.nombre}  ·  {usuario.rol.upper()}  ",
             font=("Arial", 11, "bold"), text_color=rol_color
-        ).pack(padx=10, pady=5)
+        ).pack(padx=10, pady=4)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
         # ── Cards ────────────────────────────────────────────────────────────
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
-        cards_frame.pack(pady=26)
+        cards_pady = {"full": 26, "compact": 14, "mini": 8}[size]
+        cards_frame.pack(pady=cards_pady)
 
         self._crear_card(cards_frame, "NUEVA RESERVA",       "Registrá un nuevo turno",        "✦", _COLOR["reserva"],    self.abrir_registrar,   0, 0)
         self._crear_card(cards_frame, "VER RESERVAS",        "Listado completo de turnos",     "≡", _COLOR["ver"],        self.abrir_ver,         0, 1)
@@ -125,7 +146,8 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
 
         # ── Botones ───────────────────────────────────────────────────────────
         botones_wrap = ctk.CTkFrame(self, fg_color="transparent")
-        botones_wrap.pack(pady=16)
+        btn_pady = {"full": 16, "compact": 10, "mini": 6}[size]
+        botones_wrap.pack(pady=btn_pady)
 
         ctk.CTkButton(
             botones_wrap, text="CERRAR SESIÓN", command=self._cerrar_sesion,
@@ -144,12 +166,20 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
     # ── Cards ────────────────────────────────────────────────────────────────
 
     def _crear_card(self, parent, titulo, subtitulo, icono, color, comando, row, col):
+        size   = self._size
+        card_h = {"full": 128, "compact": 108, "mini": 92}[size]
+        card_w = {"full": 376, "compact": 356, "mini": 336}[size]
+        pady   = {"full": 11,  "compact": 7,   "mini": 4}[size]
+        icon_y = {"full": 42,  "compact": 32,  "mini": 24}[size]
+        txt_y  = {"full": 44,  "compact": 34,  "mini": 26}[size]
+        sub_y  = {"full": 72,  "compact": 58,  "mini": 50}[size]
+
         card = ctk.CTkFrame(
-            parent, width=376, height=128,
+            parent, width=card_w, height=card_h,
             fg_color="#141414", corner_radius=14,
             border_width=1, border_color="#222222"
         )
-        card.grid(row=row, column=col, padx=11, pady=11)
+        card.grid(row=row, column=col, padx=11, pady=pady)
         card.grid_propagate(False)
 
         # Barra de acento superior
@@ -159,19 +189,20 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         # Ícono
         icon_bg = ctk.CTkFrame(card, width=46, height=46,
             fg_color="#1C1C1C", corner_radius=12)
-        icon_bg.place(x=18, y=42)
+        icon_bg.place(x=18, y=icon_y)
         icon_bg.pack_propagate(False)
         lbl_icon = ctk.CTkLabel(icon_bg, text=icono,
             font=("Arial Black", 20), text_color=color)
         lbl_icon.place(relx=0.5, rely=0.5, anchor="center")
 
         # Textos
+        title_font = {"full": 15, "compact": 13, "mini": 12}[size]
         lbl_titulo = ctk.CTkLabel(card, text=titulo,
-            font=("Arial Black", 15, "bold"), text_color="#FFFFFF")
-        lbl_titulo.place(x=76, y=44)
+            font=("Arial Black", title_font, "bold"), text_color="#FFFFFF")
+        lbl_titulo.place(x=76, y=txt_y)
         lbl_sub = ctk.CTkLabel(card, text=subtitulo,
-            font=("Arial", 11), text_color="#444444")
-        lbl_sub.place(x=76, y=72)
+            font=("Arial", 10), text_color="#444444")
+        lbl_sub.place(x=76, y=sub_y)
 
         # Flecha
         arrow = ctk.CTkLabel(card, text="›", font=("Arial Black", 26), text_color="#2A2A2A")
@@ -211,8 +242,11 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
 
     def _crear_card_wide(self, parent, titulo, subtitulo, icono, color, comando):
         """Card de ancho completo (ocupa las dos columnas)."""
+        size = self._size
+        card_w = {"full": 774, "compact": 734, "mini": 694}[size]
+        card_h = {"full": 80,  "compact": 68,  "mini": 58}[size]
         card = ctk.CTkFrame(
-            parent, width=774, height=80,
+            parent, width=card_w, height=card_h,
             fg_color="#141414", corner_radius=14,
             border_width=1, border_color="#222222",
         )
@@ -268,6 +302,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
     def _build_sync_bar(self):
         barra = ctk.CTkFrame(self, fg_color="#0A0A0A", corner_radius=0, height=26)
         barra.pack(fill="x", side="bottom")
+        self._sync_bar_ref = barra
         barra.pack_propagate(False)
 
         self._dot_sync = ctk.CTkLabel(barra, text="●",
@@ -348,6 +383,50 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
     def abrir_disponibilidad(self):
         from ui.disponibilidad_window import DisponibilidadWindow
         DisponibilidadWindow(self)
+
+    # ── Actualización ────────────────────────────────────────────────────────
+
+    def _verificar_actualizacion(self):
+        import threading
+        def _check():
+            from models.actualizacion_service import verificar_actualizacion
+            hay_update, version, url = verificar_actualizacion()
+            if hay_update:
+                self.after(0, lambda: self._mostrar_banner_update(version, url))
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _mostrar_banner_update(self, version, url):
+        try:
+            banner = ctk.CTkFrame(self, fg_color="#1A1200", corner_radius=0,
+                                  border_width=1, border_color="#3A2800")
+            banner.pack(fill="x", before=self._sync_bar_ref)
+
+            ctk.CTkLabel(
+                banner,
+                text=f"  Nueva versión disponible: v{version}",
+                font=("Arial", 11), text_color="#FFD700"
+            ).pack(side="left", padx=(12, 4), pady=6)
+
+            def _descargar():
+                if url:
+                    import webbrowser
+                    webbrowser.open(url)
+
+            ctk.CTkButton(
+                banner, text="Descargar actualización",
+                command=_descargar,
+                fg_color="#3A2800", hover_color="#5A4000",
+                text_color="#FFD700", border_color="#5A4000", border_width=1,
+                corner_radius=6, width=180, height=26, font=("Arial", 10, "bold")
+            ).pack(side="left", padx=4, pady=6)
+
+            ctk.CTkButton(
+                banner, text="✕", command=banner.destroy,
+                fg_color="transparent", hover_color="#2A1800",
+                text_color="#664400", width=28, height=26, font=("Arial", 11)
+            ).pack(side="right", padx=8, pady=6)
+        except Exception:
+            pass
 
     # ── Ciclos periódicos ─────────────────────────────────────────────────────
 

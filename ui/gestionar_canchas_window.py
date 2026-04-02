@@ -1,6 +1,6 @@
 # ui/gestionar_canchas_window.py
 import customtkinter as ctk
-from ui.ventana_mixin import VentanaMixin
+from ui.ventana_mixin import VentanaMixin, centrar_ventana
 from tkcalendar import DateEntry
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
@@ -29,12 +29,8 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Gestionar Canchas")
-        width, height = 780, 860
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        centrar_ventana(self, 780, 860)
         self.transient(parent)
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")

@@ -1,21 +1,12 @@
 # db/database.py
-import os
-from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-load_dotenv()
-
-_USER     = os.getenv("user")
-_PASSWORD = os.getenv("password")
-_HOST     = os.getenv("host")
-_PORT     = os.getenv("port", "5432")
-_DBNAME   = os.getenv("dbname", "postgres")
-
-if not _HOST or not _PASSWORD:
-    raise EnvironmentError(
-        "Faltan variables de entorno. Asegurate de tener 'host' y 'password' en el archivo .env"
-    )
+_USER     = "postgres.shvsdftzvzknftxnbkhs"
+_PASSWORD = "VhqXwb7yHkpDv0wK"
+_HOST     = "aws-1-sa-east-1.pooler.supabase.com"
+_PORT     = "5432"
+_DBNAME   = "postgres"
 
 DATABASE_URL = (
     f"postgresql+psycopg2://{_USER}:{_PASSWORD}"

@@ -1,6 +1,6 @@
 # ui/calendario_reservas_window.py
 import customtkinter as ctk
-from ui.ventana_mixin import VentanaMixin
+from ui.ventana_mixin import VentanaMixin, centrar_ventana
 from tkcalendar import Calendar
 from datetime import datetime
 from auth.session import SessionManager
@@ -21,12 +21,8 @@ class CalendarioWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Calendario de Reservas")
-        width, height = 880, 540
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        centrar_ventana(self, 880, 540)
         self.resizable(False, False)
         self.transient(parent)
         self.configure(fg_color="#0D0D0D")

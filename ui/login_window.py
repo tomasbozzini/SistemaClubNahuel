@@ -18,10 +18,9 @@ class LoginWindow(ctk.CTk):
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _set_centered(self, width: int, height: int):
+        from ui.ventana_mixin import centrar_ventana
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        centrar_ventana(self, width, height)
 
     # ── Splash / conexión ─────────────────────────────────────────────────────
 
