@@ -462,8 +462,9 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             ))
 
         def _done(ruta):
-            self.after(0, lambda: lbl_pct.configure(text="Reiniciando..."))
             self.after(0, lambda: barra.set(1))
+            self.after(0, lambda: lbl_pct.configure(
+                text="Actualización lista. Reabrí el programa."))
             self.after(800, lambda: aplicar_actualizacion(ruta))
 
         def _error(exc):
