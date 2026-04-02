@@ -30,9 +30,12 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
 
         self.title("Gestionar Canchas")
         self.update_idletasks()
-        centrar_ventana(self, 780, 860)
+        from ui.ventana_mixin import _get_work_area
+        _, work_h = _get_work_area(self)
+        altura = min(860, work_h - 20)
+        centrar_ventana(self, 780, altura)
         self.transient(parent)
-        self.resizable(False, False)
+        self.resizable(False, True)
         self.configure(fg_color="#0D0D0D")
 
         self._cancha_sel_id = None
