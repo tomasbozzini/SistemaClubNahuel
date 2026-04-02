@@ -64,30 +64,28 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
 def aplicar_actualizacion(ruta_nueva: str):
     """
     Reemplaza el exe actual con ruta_nueva y reinicia la app.
-    Usa PowerShell para evitar que variables de entorno de PyInstaller
-    (_MEIPASS2) se hereden al nuevo proceso y rompan la carga del DLL.
+    Usa VBScript + ShellExecute para lanzar el nuevo exe exactamente
+    igual que si el usuario hiciera doble click — evita problemas de
+    contexto/DLL que ocurren al lanzar desde procesos hijos detached.
     """
     exe_actual = _exe_path()
     exe_dir    = os.path.dirname(exe_actual)
+    vbs_path   = os.path.join(exe_dir, "_update_helper.vbs")
 
-    # PowerShell: esperar, reemplazar, limpiar env de PyInstaller, lanzar limpio
-    ps_cmd = (
-        f"Start-Sleep -Seconds 6; "
-        f"Move-Item -Force '{ruta_nueva}' '{exe_actual}'; "
-        f"$env:_MEIPASS2 = $null; "
-        f"Remove-Item Env:_MEIPASS2 -ErrorAction SilentlyContinue; "
-        f"Start-Process -FilePath '{exe_actual}' "
-        f"-WorkingDirectory '{exe_dir}'"
+    vbs = (
+        'WScript.Sleep 6000\n'
+        'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+        f'fso.MoveFile "{ruta_nueva}", "{exe_actual}"\n'
+        'Set sh = CreateObject("Shell.Application")\n'
+        f'sh.ShellExecute "{exe_actual}", "", "{exe_dir}", "open", 1\n'
+        'WScript.Quit\n'
     )
+    with open(vbs_path, "w") as f:
+        f.write(vbs)
 
     subprocess.Popen(
-        [
-            "powershell",
-            "-WindowStyle", "Hidden",
-            "-NonInteractive",
-            "-Command", ps_cmd,
-        ],
-        creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+        ["wscript.exe", "//B", vbs_path],
+        creationflags=subprocess.DETACHED_PROCESS,
         close_fds=True,
     )
     sys.exit(0)
