@@ -191,11 +191,20 @@ class LoginWindow(ctk.CTk):
         self.lbl_error.configure(text=mensaje)
 
     def _abrir_principal(self):
+        import traceback
         usuario = SessionManager.get_usuario_actual()
         self.withdraw()
-        if usuario and usuario.rol == "supervisor":
-            from ui.supervisor_window import SupervisorWindow
-            SupervisorWindow(self)
-        else:
-            from ui.main_window import MainWindow
-            MainWindow(self)
+        try:
+            if usuario and usuario.rol == "supervisor":
+                from ui.supervisor_window import SupervisorWindow
+                SupervisorWindow(self)
+            else:
+                from ui.main_window import MainWindow
+                MainWindow(self)
+        except Exception:
+            self.deiconify()
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Error al abrir el sistema",
+                traceback.format_exc()
+            )
