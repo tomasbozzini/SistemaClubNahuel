@@ -1,6 +1,6 @@
 # ui/ver_reservas_window.py
 import customtkinter as ctk
-from ui.ventana_mixin import VentanaMixin
+from ui.ventana_mixin import VentanaMixin, centrar_ventana
 import tkinter as tk
 from tkinter import ttk, messagebox
 import webbrowser
@@ -82,12 +82,8 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Ver Reservas")
-        width, height = 1160, 560
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth() // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        centrar_ventana(self, 1160, 560)
         self.transient(parent)
         self.configure(fg_color="#0D0D0D")
 

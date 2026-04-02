@@ -4,7 +4,7 @@ Vista de disponibilidad en tiempo real.
 Grilla: canchas como columnas (encabezado fijo) y horarios como filas (scroll vertical).
 """
 import customtkinter as ctk
-from ui.ventana_mixin import VentanaMixin
+from ui.ventana_mixin import VentanaMixin, centrar_ventana
 import tkinter as tk
 from tkcalendar import DateEntry
 from datetime import date, datetime, time, timedelta
@@ -61,12 +61,8 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Disponibilidad en Tiempo Real — Club Nahuel")
-        width, height = 1000, 680
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        centrar_ventana(self, 1000, 680)
         self.transient(parent)
         self.resizable(True, True)
         self.configure(fg_color="#0D0D0D")

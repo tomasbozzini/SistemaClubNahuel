@@ -24,11 +24,22 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
             return
 
         self.title("Panel Supervisor — Club Nahuel")
-        width, height = 820, 870
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
+        from ui.ventana_mixin import _get_work_area
+        work_w, work_h = _get_work_area(self)
+
+        if work_h >= 850:
+            self._size = "full"
+            width, height = 820, min(870, work_h - 20)
+        elif work_h >= 750:
+            self._size = "compact"
+            width, height = 780, min(730, work_h - 20)
+        else:
+            self._size = "mini"
+            width, height = 740, min(640, work_h - 20)
+
+        x = (work_w // 2) - (width  // 2)
+        y = (work_h // 2) - (height // 2)
         self.geometry(f"{width}x{height}+{x}+{y}")
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")
@@ -46,40 +57,46 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         ctk.CTkFrame(self, height=4, fg_color="#00D68F", corner_radius=0).pack(fill="x")
 
         # Header
+        size = self._size
         header_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
         header_frame.pack(fill="x")
         inner_header = ctk.CTkFrame(header_frame, fg_color="transparent")
-        inner_header.pack(pady=(22, 18))
+        hpad = {"full": (22, 18), "compact": (12, 10), "mini": (6, 6)}[size]
+        inner_header.pack(pady=hpad)
 
         logo_path = "assets/logoclubnahuel.png"
+        logo_size = {"full": (88, 72), "compact": (68, 56), "mini": (52, 42)}[size]
         try:
             logo_img = CTkImage(
                 light_image=Image.open(logo_path),
                 dark_image=Image.open(logo_path),
-                size=(88, 72),
+                size=logo_size,
             )
             ctk.CTkLabel(inner_header, image=logo_img, text="").pack()
         except Exception:
             pass
 
+        title_font = {"full": 32, "compact": 24, "mini": 20}[size]
+        title_pady = {"full": (8, 0), "compact": (6, 0), "mini": (4, 0)}[size]
         ctk.CTkLabel(inner_header, text="CLUB NAHUEL",
-            font=("Arial Black", 32, "bold"), text_color="#FFFFFF").pack(pady=(8, 0))
-        ctk.CTkLabel(inner_header, text="P A N E L   S U P E R V I S O R",
-            font=("Arial", 10), text_color="#00D68F").pack(pady=(3, 0))
+            font=("Arial Black", title_font, "bold"), text_color="#FFFFFF").pack(pady=title_pady)
+        if size != "mini":
+            ctk.CTkLabel(inner_header, text="P A N E L   S U P E R V I S O R",
+                font=("Arial", 10), text_color="#00D68F").pack(pady=(2, 0))
 
-        # Chip de usuario
         chip = ctk.CTkFrame(inner_header, fg_color="#1A1A1A", corner_radius=20,
             border_width=1, border_color="#2A2A2A")
-        chip.pack(pady=(12, 0))
+        chip_pady = {"full": (12, 0), "compact": (8, 0), "mini": (5, 0)}[size]
+        chip.pack(pady=chip_pady)
         ctk.CTkLabel(chip,
             text=f"  {usuario.nombre}  ·  SUPERVISOR  ",
-            font=("Arial", 11, "bold"), text_color="#00D68F").pack(padx=10, pady=5)
+            font=("Arial", 11, "bold"), text_color="#00D68F").pack(padx=10, pady=4)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
-        # Cards
+        cards_pady = {"full": 16, "compact": 10, "mini": 6}[size]
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
-        cards_frame.pack(pady=16)
+        cards_frame.pack(pady=cards_pady)
 
         self._crear_card(cards_frame, "SISTEMA DE RESERVAS", "Gestioná turnos y reservas",
             "◉", _COLOR["reservas"], self._abrir_reservas, 0, 0)
@@ -108,7 +125,8 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
 
         # Botones
         botones_wrap = ctk.CTkFrame(self, fg_color="transparent")
-        botones_wrap.pack(pady=18)
+        btn_pady = {"full": 18, "compact": 10, "mini": 6}[size]
+        botones_wrap.pack(pady=btn_pady)
 
         ctk.CTkButton(
             botones_wrap, text="CERRAR SESIÓN", command=self._cerrar_sesion,
@@ -127,12 +145,20 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
     # ── Cards ─────────────────────────────────────────────────────────────────
 
     def _crear_card(self, parent, titulo, subtitulo, icono, color, comando, row, col):
+        size   = self._size
+        card_h = {"full": 126, "compact": 106, "mini": 90}[size]
+        card_w = {"full": 352, "compact": 332, "mini": 312}[size]
+        pady   = {"full": 11,  "compact": 7,   "mini": 4}[size]
+        icon_y = {"full": 40,  "compact": 30,  "mini": 22}[size]
+        txt_y  = {"full": 42,  "compact": 32,  "mini": 24}[size]
+        sub_y  = {"full": 70,  "compact": 57,  "mini": 48}[size]
+
         card = ctk.CTkFrame(
-            parent, width=352, height=126,
+            parent, width=card_w, height=card_h,
             fg_color="#141414", corner_radius=14,
             border_width=1, border_color="#222222",
         )
-        card.grid(row=row, column=col, padx=11, pady=11)
+        card.grid(row=row, column=col, padx=11, pady=pady)
         card.grid_propagate(False)
 
         accent = ctk.CTkFrame(card, height=3, fg_color=color, corner_radius=0)
@@ -140,18 +166,19 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
 
         icon_bg = ctk.CTkFrame(card, width=46, height=46,
             fg_color="#1C1C1C", corner_radius=12)
-        icon_bg.place(x=18, y=40)
+        icon_bg.place(x=18, y=icon_y)
         icon_bg.pack_propagate(False)
         lbl_icon = ctk.CTkLabel(icon_bg, text=icono,
             font=("Arial Black", 20), text_color=color)
         lbl_icon.place(relx=0.5, rely=0.5, anchor="center")
 
+        title_font = {"full": 14, "compact": 13, "mini": 12}[size]
         lbl_titulo = ctk.CTkLabel(card, text=titulo,
-            font=("Arial Black", 14, "bold"), text_color="#FFFFFF")
-        lbl_titulo.place(x=76, y=42)
+            font=("Arial Black", title_font, "bold"), text_color="#FFFFFF")
+        lbl_titulo.place(x=76, y=txt_y)
         lbl_sub = ctk.CTkLabel(card, text=subtitulo,
-            font=("Arial", 11), text_color="#444444")
-        lbl_sub.place(x=76, y=70)
+            font=("Arial", 10), text_color="#444444")
+        lbl_sub.place(x=76, y=sub_y)
 
         arrow = ctk.CTkLabel(card, text="›", font=("Arial Black", 26), text_color="#2A2A2A")
         arrow.place(relx=0.92, rely=0.62, anchor="center")
@@ -180,8 +207,11 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
             w.bind("<Button-1>", lambda e, c=comando: c())
 
     def _crear_card_wide(self, parent, titulo, subtitulo, icono, color, comando):
+        size   = self._size
+        card_w = {"full": 726, "compact": 686, "mini": 646}[size]
+        card_h = {"full": 76,  "compact": 64,  "mini": 54}[size]
         card = ctk.CTkFrame(
-            parent, width=726, height=76,
+            parent, width=card_w, height=card_h,
             fg_color="#141414", corner_radius=14,
             border_width=1, border_color="#222222",
         )

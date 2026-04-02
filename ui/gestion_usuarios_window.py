@@ -1,6 +1,6 @@
 # ui/gestion_usuarios_window.py
 import customtkinter as ctk
-from ui.ventana_mixin import VentanaMixin
+from ui.ventana_mixin import VentanaMixin, centrar_ventana
 from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.usuarios_service import listar_admins, crear_admin, actualizar_admin, eliminar_admin, restablecer_password
@@ -20,12 +20,8 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
             return
 
         self.title("Gestión de Usuarios — Club Nahuel")
-        width, height = 760, 680
-        self.geometry(f"{width}x{height}")
         self.update_idletasks()
-        x = (self.winfo_screenwidth()  // 2) - (width  // 2)
-        y = (self.winfo_screenheight() // 2) - (height // 2)
-        self.geometry(f"{width}x{height}+{x}+{y}")
+        centrar_ventana(self, 760, 680)
         self.transient(parent)
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")

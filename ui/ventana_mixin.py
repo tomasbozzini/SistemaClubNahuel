@@ -2,6 +2,44 @@
 import time
 import customtkinter as ctk
 
+
+def _get_work_area(win):
+    """
+    Devuelve (work_w, work_h) en píxeles lógicos (los que usa Tkinter).
+    Descuenta la barra de tareas de Windows sin importar el escalado DPI.
+    """
+    screen_w = win.winfo_screenwidth()
+    screen_h = win.winfo_screenheight()
+    try:
+        import ctypes, ctypes.wintypes
+        # GetSystemMetrics en píxeles físicos
+        phys_screen = ctypes.windll.user32.GetSystemMetrics(1)   # SM_CYSCREEN
+        phys_work   = ctypes.windll.user32.GetSystemMetrics(17)  # SM_CYFULLSCREEN (sin taskbar)
+        if phys_screen > 0:
+            taskbar_ratio = (phys_screen - phys_work) / phys_screen
+            taskbar_logical = int(screen_h * taskbar_ratio)
+            work_h = screen_h - taskbar_logical - 8
+        else:
+            work_h = screen_h - 60
+    except Exception:
+        work_h = screen_h - 60
+    return screen_w, work_h
+
+
+def centrar_ventana(win, width, height):
+    """
+    Centra la ventana en el área útil real (excluye barra de tareas).
+    Funciona correctamente con cualquier escalado DPI de Windows.
+    Retorna (width, height) final.
+    """
+    work_w, work_h = _get_work_area(win)
+    width  = min(width,  work_w - 20)
+    height = min(height, work_h - 20)
+    x = (work_w // 2) - (width  // 2)
+    y = (work_h // 2) - (height // 2)
+    win.geometry(f"{width}x{height}+{x}+{y}")
+    return width, height
+
 # Timeout de inactividad: 30 minutos. Aviso: 2 minutos antes.
 _INACTIVIDAD_TOTAL_S = 30 * 60
 _INACTIVIDAD_AVISO_S = 2  * 60
