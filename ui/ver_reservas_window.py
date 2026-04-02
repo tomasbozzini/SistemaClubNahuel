@@ -150,6 +150,12 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.tag_configure("futbol", foreground="#A3F843")
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
 
+        # Tag para cabeceras de sección
+        self.tree.tag_configure("seccion",
+            foreground="#555555", background="#111111",
+            font=("Arial", 9, "bold"))
+        self._separadores: set = set()
+
         # Barra inferior de acciones
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(10, 0))
@@ -232,27 +238,45 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
     def cargar_reservas(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
+        self._separadores = set()
         self._filas = listar_reservas()
         filas = self._filas
         if self._orden_deporte:
             filas = sorted(filas, key=lambda f: (f[3].lower(), f[4], f[5]))
-        for f in filas:
+
+        individuales = [f for f in filas if (f[10] if len(f) > 10 else 0) <= 1]
+        recurrentes  = [f for f in filas if (f[10] if len(f) > 10 else 0) > 1]
+
+        def _insertar_seccion(titulo, cantidad):
+            sep_label = f"  {titulo}  ({cantidad})"
+            vacío = ("", sep_label, "", "", "", "", "", "", "")
+            iid = self.tree.insert("", tk.END, values=vacío, tags=("seccion",))
+            self._separadores.add(iid)
+
+        def _insertar_fila(f):
             # f: (id[0], cliente[1], cancha[2], tipo[3], fecha[4], hora[5],
             #     notas[6], telefono[7], estado_pago[8], grupo_recurrente_id[9], total_serie[10])
-            tipo_raw  = f[3].lower().replace("á", "a").replace("ú", "u")
-            tag       = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
-            pago_text = _LABEL_PAGO.get(f[8], f[8])
+            tipo_raw    = f[3].lower().replace("á", "a").replace("ú", "u")
+            tag         = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
+            pago_text   = _LABEL_PAGO.get(f[8], f[8])
             total_serie = f[10] if len(f) > 10 else 0
             if total_serie > 1:
                 notas_text = f"↺ {total_serie} fechas" + (f"  |  {f[6]}" if f[6] else "")
             else:
                 notas_text = f[6]
-            display = (
-                f[0], f[1], f[7], f[2], f[3], f[4], f[5],
-                pago_text,
-                notas_text,
-            )
+            display = (f[0], f[1], f[7], f[2], f[3], f[4], f[5], pago_text, notas_text)
             self.tree.insert("", tk.END, values=display, tags=(tag,))
+
+        if individuales:
+            _insertar_seccion("RESERVAS DEL DÍA", len(individuales))
+            for f in individuales:
+                _insertar_fila(f)
+
+        if recurrentes:
+            _insertar_seccion("RESERVAS FIJAS", len(recurrentes))
+            for f in recurrentes:
+                _insertar_fila(f)
+
         n = len(filas)
         self.lbl_count.configure(text=f"{n} turno{'s' if n != 1 else ''}")
 
@@ -260,6 +284,8 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         """Retorna la fila de datos completa del item seleccionado, o None."""
         sel = self.tree.selection()
         if not sel:
+            return None
+        if sel[0] in self._separadores:
             return None
         reserva_id = int(self.tree.item(sel[0])["values"][0])
         return next((f for f in self._filas if f[0] == reserva_id), None)
