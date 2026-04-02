@@ -1,18 +1,33 @@
 # db/database.py
+import os
+import sys
+import configparser
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-_USER     = "postgres.shvsdftzvzknftxnbkhs"
-_PASSWORD = "VhqXwb7yHkpDv0wK"
-_HOST     = "aws-1-sa-east-1.pooler.supabase.com"
-_PORT     = "5432"
-_DBNAME   = "postgres"
 
-DATABASE_URL = (
-    f"postgresql+psycopg2://{_USER}:{_PASSWORD}"
-    f"@{_HOST}:{_PORT}/{_DBNAME}"
-    f"?sslmode=require"
-)
+def _get_db_url() -> str:
+    cfg = configparser.ConfigParser()
+
+    if getattr(sys, "frozen", False):
+        # Ejecutable PyInstaller: config.ini está en sys._MEIPASS
+        base = sys._MEIPASS
+    else:
+        # Desarrollo: config.ini está en la raíz del proyecto
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    path = os.path.join(base, "config.ini")
+    cfg.read(path)
+
+    db = cfg["database"]
+    return (
+        f"postgresql+psycopg2://{db['user']}:{db['password']}"
+        f"@{db['host']}:{db['port']}/{db['dbname']}"
+        f"?sslmode=require"
+    )
+
+
+DATABASE_URL = _get_db_url()
 
 engine = create_engine(
     DATABASE_URL,
@@ -32,21 +47,13 @@ class Base(DeclarativeBase):
 
 
 def get_connection():
-    """
-    Devuelve una sesión SQLAlchemy lista para usar.
-
-        with get_connection() as session:
-            session.execute(...)
-    """
     return SessionLocal()
 
 
 def probar_conexion():
-    """Verifica que la conexión a Supabase sea exitosa."""
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        print("Conexión exitosa a Supabase.")
         return True
     except Exception as e:
         print(f"Error al conectar con Supabase: {e}")

@@ -56,7 +56,7 @@ class LoginWindow(ctk.CTk):
             corner_radius=10, height=40, width=160,
         )
 
-        ctk.CTkLabel(self, text="v 1.3.4",
+        ctk.CTkLabel(self, text="v 1.3.5",
             font=("Arial", 9), text_color="#2A2A2A").place(relx=0.5, rely=0.93, anchor="center")
 
     def _verificar_conexion(self):
@@ -105,7 +105,7 @@ class LoginWindow(ctk.CTk):
         ctk.CTkLabel(brand, text="S I S T E M A  D E  R E S E R V A S",
             font=("Arial", 8, "bold"), text_color="#1E1E1E").pack()
 
-        ctk.CTkLabel(left, text="v 1.3.4",
+        ctk.CTkLabel(left, text="v 1.3.5",
             font=("Arial", 9), text_color="#2C2C1A").place(relx=0.5, rely=0.93, anchor="center")
 
         # Panel derecho — formulario
