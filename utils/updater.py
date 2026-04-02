@@ -19,10 +19,10 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
     """
     def _worker():
         try:
-            exe_dir  = os.path.dirname(_exe_path())
-            dest     = os.path.join(exe_dir, "_main_update.exe")
+            exe_dir = os.path.dirname(_exe_path())
+            dest    = os.path.join(exe_dir, "_main_update.exe")
 
-            req   = urllib.request.urlopen(url, timeout=60)
+            req   = urllib.request.urlopen(url, timeout=120)
             total = int(req.headers.get("Content-Length", 0))
             descargado = 0
 
@@ -35,6 +35,22 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
                     descargado += len(bloque)
                     if on_progress:
                         on_progress(descargado, total)
+
+            # Verificar que el archivo esté completo
+            if total and descargado < total:
+                raise IOError(
+                    f"Descarga incompleta: {descargado} de {total} bytes."
+                )
+
+            # Desbloquear el archivo (Windows marca los descargados como no confiables)
+            try:
+                subprocess.run(
+                    ["powershell", "-Command", f'Unblock-File -Path "{dest}"'],
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    timeout=10,
+                )
+            except Exception:
+                pass
 
             if on_done:
                 on_done(dest)
@@ -57,8 +73,11 @@ def aplicar_actualizacion(ruta_nueva: str):
 
     bat = (
         "@echo off\n"
-        "ping -n 3 127.0.0.1 > NUL\n"
+        # Esperar 6 segundos para que el proceso anterior libere el archivo
+        "ping -n 7 127.0.0.1 > NUL\n"
         f'move /y "{ruta_nueva}" "{exe_actual}"\n'
+        # Cambiar al directorio del exe antes de lanzarlo
+        f'cd /d "{exe_dir}"\n'
         f'start "" "{exe_actual}"\n'
         'del "%~f0"\n'
     )
