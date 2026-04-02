@@ -2,6 +2,7 @@
 import os
 import sys
 import subprocess
+import tempfile
 import threading
 import urllib.request
 
@@ -19,8 +20,7 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
     """
     def _worker():
         try:
-            exe_dir = os.path.dirname(_exe_path())
-            dest    = os.path.join(exe_dir, "_main_update.exe")
+            dest = os.path.join(tempfile.gettempdir(), "_main_update.exe")
 
             req   = urllib.request.urlopen(url, timeout=120)
             total = int(req.headers.get("Content-Length", 0))
