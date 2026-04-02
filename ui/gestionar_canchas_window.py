@@ -14,7 +14,7 @@ from models.bloqueos_service import (
 )
 from utils.validaciones import sanitizar_texto
 
-_TIPOS_VALIDOS   = {"Fútbol", "Pádel", "Tenis"}
+_TIPOS_VALIDOS    = {"Fútbol", "Pádel", "Tenis"}
 _DURACION_DEFAULT = {"Fútbol": 60, "Pádel": 90, "Tenis": 60}
 _DURACIONES       = ["30", "45", "60", "75", "90", "120"]
 
@@ -32,14 +32,16 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.update_idletasks()
         from ui.ventana_mixin import _get_work_area
         _, work_h = _get_work_area(self)
-        altura = min(860, work_h - 20)
-        centrar_ventana(self, 780, altura)
+        altura = min(780, work_h - 20)
+        centrar_ventana(self, 800, altura)
         self.transient(parent)
         self.resizable(False, True)
         self.configure(fg_color="#0D0D0D")
 
         self._cancha_sel_id = None
+        self._canchas_cache = []
 
+        # ── Header ────────────────────────────────────────────────────────────
         ctk.CTkFrame(self, height=4, fg_color="#FF8C42", corner_radius=0).pack(fill="x")
 
         hdr = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
@@ -47,23 +49,49 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkLabel(hdr, text="GESTIONAR CANCHAS",
             font=("Arial Black", 20, "bold"), text_color="#FFFFFF").pack(
             anchor="w", padx=28, pady=(16, 2))
-        ctk.CTkLabel(hdr, text="Agregá, eliminá o modificá las canchas y sus bloqueos",
+        ctk.CTkLabel(hdr, text="Administrá las canchas y los bloqueos por mantenimiento",
             font=("Arial", 11), text_color="#FF8C42").pack(anchor="w", padx=28, pady=(0, 14))
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
-        # ── Formulario agregar ────────────────────────────────────────────────
-        form_card = ctk.CTkFrame(self, fg_color="#141414", corner_radius=0)
-        form_card.pack(fill="x")
+        # ── Pestañas ──────────────────────────────────────────────────────────
+        self._tabs = ctk.CTkTabview(self,
+            fg_color="#0D0D0D",
+            segmented_button_fg_color="#111111",
+            segmented_button_selected_color="#FF8C42",
+            segmented_button_selected_hover_color="#FFA066",
+            segmented_button_unselected_color="#111111",
+            segmented_button_unselected_hover_color="#1A1A1A",
+            text_color="#FFFFFF",
+            border_width=0,
+        )
+        self._tabs.pack(fill="both", expand=True, padx=0, pady=0)
+        self._tabs.add("  CANCHAS  ")
+        self._tabs.add("  MANTENIMIENTO  ")
 
-        fila = ctk.CTkFrame(form_card, fg_color="transparent")
-        fila.pack(padx=24, pady=16, fill="x")
+        self._build_tab_canchas(self._tabs.tab("  CANCHAS  "))
+        self._build_tab_mantenimiento(self._tabs.tab("  MANTENIMIENTO  "))
 
+        self._aplicar_estilo_tree()
+        self.cargar_canchas()
+        self._cargar_bloqueos()
+        self.after(150, self._mostrar_ventana)
+
+    # ── Tab CANCHAS ───────────────────────────────────────────────────────────
+
+    def _build_tab_canchas(self, tab):
         lbl_kw   = {"font": ("Arial", 10, "bold"), "text_color": "#555555", "anchor": "w"}
         combo_kw = dict(fg_color="#1A1A1A", border_color="#252525", border_width=1,
             text_color="#FFFFFF", button_color="#252525", button_hover_color="#FF8C42",
             dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
             corner_radius=10, height=40)
+
+        # Formulario agregar
+        form = ctk.CTkFrame(tab, fg_color="#141414", corner_radius=10)
+        form.pack(fill="x", padx=8, pady=(8, 4))
+
+        fila = ctk.CTkFrame(form, fg_color="transparent")
+        fila.pack(padx=16, pady=14, fill="x")
 
         col_nombre = ctk.CTkFrame(fila, fg_color="transparent")
         col_nombre.pack(side="left", expand=True, fill="x", padx=(0, 10))
@@ -93,17 +121,15 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             font=("Arial Black", 12, "bold"), corner_radius=10, width=110, height=40
         ).pack(side="left", anchor="s")
 
-        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
+        # Editar duración
+        edit_card = ctk.CTkFrame(tab, fg_color="#111111", corner_radius=10)
+        edit_card.pack(fill="x", padx=8, pady=4)
 
-        # ── Editar duración de cancha seleccionada ────────────────────────────
-        self._edit_card = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
-        self._edit_card.pack(fill="x")
-
-        edit_row = ctk.CTkFrame(self._edit_card, fg_color="transparent")
-        edit_row.pack(padx=24, pady=12, fill="x")
+        edit_row = ctk.CTkFrame(edit_card, fg_color="transparent")
+        edit_row.pack(padx=16, pady=10, fill="x")
 
         self._lbl_sel = ctk.CTkLabel(edit_row,
-            text="Seleccioná una cancha de la lista para editar su duración",
+            text="Seleccioná una cancha para editar su duración",
             font=("Arial", 10), text_color="#333333", anchor="w")
         self._lbl_sel.pack(side="left", expand=True, fill="x")
 
@@ -117,29 +143,24 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             fg_color="transparent", hover_color="#1A1A00",
             text_color="#FFD700", border_color="#2A2A00", border_width=1,
             corner_radius=10, width=180, height=36,
-            font=("Arial", 11, "bold"),
-            state="disabled",
+            font=("Arial", 11, "bold"), state="disabled",
         )
         self._btn_actualizar.pack(side="left")
 
-        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
-
-        # ── Lista de canchas ──────────────────────────────────────────────────
-        list_card = ctk.CTkFrame(self, fg_color="#0F0F0F", corner_radius=0)
-        list_card.pack(fill="x")
+        # Lista de canchas
+        list_card = ctk.CTkFrame(tab, fg_color="#0F0F0F", corner_radius=10)
+        list_card.pack(fill="both", expand=True, padx=8, pady=4)
 
         ctk.CTkLabel(list_card, text="CANCHAS REGISTRADAS",
             font=("Arial", 10, "bold"), text_color="#333333").pack(
-            anchor="w", padx=24, pady=(12, 6))
-
-        self._aplicar_estilo_tree()
+            anchor="w", padx=16, pady=(10, 6))
 
         tree_frame = ctk.CTkFrame(list_card, fg_color="transparent")
-        tree_frame.pack(fill="x", padx=14)
+        tree_frame.pack(fill="both", expand=True, padx=10)
 
         cols = ("ID", "Nombre", "Tipo", "Duración (min)")
         self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings",
-            style="Club.Treeview", height=5)
+            style="Club.Treeview", height=6)
         widths = {"ID": 50, "Nombre": 300, "Tipo": 160, "Duración (min)": 120}
         for c in cols:
             self.tree.heading(c, text=c)
@@ -148,7 +169,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         scrollbar_c = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview,
             style="Club.Vertical.TScrollbar")
         self.tree.configure(yscrollcommand=scrollbar_c.set)
-        self.tree.pack(side="left", fill="x", expand=True)
+        self.tree.pack(side="left", fill="both", expand=True)
         scrollbar_c.pack(side="right", fill="y")
 
         self.tree.tag_configure("padel",  foreground="#00C4FF")
@@ -156,39 +177,21 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
         self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)
 
-        ctk.CTkFrame(list_card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
-            fill="x", pady=(8, 0))
         ctk.CTkButton(list_card, text="ELIMINAR CANCHA SELECCIONADA",
             command=self.eliminar_cancha,
             fg_color="transparent", hover_color="#1A0000",
             text_color="#FF5C5C", border_color="#2A0000", border_width=1,
             corner_radius=0, height=36, font=("Arial", 11, "bold")
-        ).pack(fill="x")
+        ).pack(fill="x", pady=(6, 0))
 
-        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
+    # ── Tab MANTENIMIENTO ─────────────────────────────────────────────────────
 
-        # ── Sección Bloqueos ──────────────────────────────────────────────────
-        bloqueo_hdr = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
-        bloqueo_hdr.pack(fill="x")
-        ctk.CTkLabel(bloqueo_hdr, text="BLOQUEOS POR MANTENIMIENTO",
-            font=("Arial", 11, "bold"), text_color="#FF5C5C").pack(
-            anchor="w", padx=24, pady=(10, 10))
-
-        bloqueo_form = ctk.CTkFrame(self, fg_color="#141414", corner_radius=0)
-        bloqueo_form.pack(fill="x")
-
-        bfila = ctk.CTkFrame(bloqueo_form, fg_color="transparent")
-        bfila.pack(padx=24, pady=14, fill="x")
-
-        # Selector de cancha para bloqueo
-        col_bcancha = ctk.CTkFrame(bfila, fg_color="transparent")
-        col_bcancha.pack(side="left", expand=True, fill="x", padx=(0, 10))
-        ctk.CTkLabel(col_bcancha, text="CANCHA", **lbl_kw).pack(anchor="w", pady=(0, 4))
-        self._canchas_cache = []
-        self.combo_bloqueo_cancha = ctk.CTkComboBox(col_bcancha, values=[""],
-            **{**combo_kw, "width": 200})
-        self.combo_bloqueo_cancha.pack(fill="x")
-
+    def _build_tab_mantenimiento(self, tab):
+        lbl_kw   = {"font": ("Arial", 10, "bold"), "text_color": "#555555", "anchor": "w"}
+        combo_kw = dict(fg_color="#1A1A1A", border_color="#252525", border_width=1,
+            text_color="#FFFFFF", button_color="#252525", button_hover_color="#FF5C5C",
+            dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
+            corner_radius=10, height=40)
         date_kw = dict(
             background="#1A1A1A", foreground="white", borderwidth=0,
             headersbackground="#0D0D0D", headersforeground="#FF5C5C",
@@ -197,6 +200,24 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             weekendbackground="#1A1A1A", weekendforeground="#FF5C5C",
             font=("Arial", 10),
         )
+
+        # Formulario bloqueo
+        form = ctk.CTkFrame(tab, fg_color="#141414", corner_radius=10)
+        form.pack(fill="x", padx=8, pady=(8, 4))
+
+        ctk.CTkLabel(form, text="NUEVO BLOQUEO",
+            font=("Arial", 10, "bold"), text_color="#FF5C5C").pack(
+            anchor="w", padx=16, pady=(10, 2))
+
+        bfila = ctk.CTkFrame(form, fg_color="transparent")
+        bfila.pack(padx=16, pady=(4, 14), fill="x")
+
+        col_bcancha = ctk.CTkFrame(bfila, fg_color="transparent")
+        col_bcancha.pack(side="left", expand=True, fill="x", padx=(0, 10))
+        ctk.CTkLabel(col_bcancha, text="CANCHA", **lbl_kw).pack(anchor="w", pady=(0, 4))
+        self.combo_bloqueo_cancha = ctk.CTkComboBox(col_bcancha, values=[""],
+            **{**combo_kw, "width": 200})
+        self.combo_bloqueo_cancha.pack(fill="x")
 
         col_bdesde = ctk.CTkFrame(bfila, fg_color="transparent")
         col_bdesde.pack(side="left", expand=False, fill="x", padx=(0, 10))
@@ -225,43 +246,39 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             font=("Arial Black", 11, "bold"), corner_radius=10, width=100, height=38,
         ).pack(side="left", anchor="s")
 
-        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
+        # Botones de acción
+        acciones = ctk.CTkFrame(tab, fg_color="transparent")
+        acciones.pack(fill="x", padx=8, pady=4)
 
-        # Botones de acción sobre bloqueos — encima de la lista
-        barra_bloqueos = ctk.CTkFrame(self, fg_color="transparent")
-        barra_bloqueos.pack(fill="x")
-
-        ctk.CTkButton(barra_bloqueos, text="TERMINAR MANTENIMIENTO HOY",
+        ctk.CTkButton(acciones, text="TERMINAR MANTENIMIENTO HOY",
             command=self._finalizar_mantenimiento_hoy,
-            fg_color="transparent", hover_color="#1A1200",
-            text_color="#FFD700", border_color="#2A2200", border_width=1,
-            corner_radius=0, height=36, font=("Arial", 11, "bold"),
-        ).pack(side="left", fill="x", expand=True)
+            fg_color="#1A1200", hover_color="#2A2000",
+            text_color="#FFD700", border_color="#3A3000", border_width=1,
+            corner_radius=8, height=40, font=("Arial", 11, "bold"),
+        ).pack(side="left", fill="x", expand=True, padx=(0, 4))
 
-        ctk.CTkButton(barra_bloqueos, text="ELIMINAR BLOQUEO",
+        ctk.CTkButton(acciones, text="ELIMINAR BLOQUEO",
             command=self._quitar_bloqueo,
-            fg_color="transparent", hover_color="#1A0000",
-            text_color="#FF5C5C", border_color="#2A0000", border_width=1,
-            corner_radius=0, height=36, width=180, font=("Arial", 11, "bold"),
+            fg_color="#1A0000", hover_color="#2A0000",
+            text_color="#FF5C5C", border_color="#3A0000", border_width=1,
+            corner_radius=8, height=40, width=200, font=("Arial", 11, "bold"),
         ).pack(side="right")
 
-        ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
-
         # Lista de bloqueos
-        blist_card = ctk.CTkFrame(self, fg_color="#0F0F0F", corner_radius=0)
-        blist_card.pack(fill="both", expand=True)
+        blist_card = ctk.CTkFrame(tab, fg_color="#0F0F0F", corner_radius=10)
+        blist_card.pack(fill="both", expand=True, padx=8, pady=4)
 
         ctk.CTkLabel(blist_card, text="BLOQUEOS ACTIVOS Y FUTUROS",
             font=("Arial", 10, "bold"), text_color="#333333").pack(
-            anchor="w", padx=24, pady=(12, 6))
+            anchor="w", padx=16, pady=(10, 6))
 
         btree_frame = ctk.CTkFrame(blist_card, fg_color="transparent")
-        btree_frame.pack(fill="both", expand=True, padx=14)
+        btree_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         bcols = ("ID", "Cancha", "Desde", "Hasta", "Motivo")
         self.btree = ttk.Treeview(btree_frame, columns=bcols, show="headings",
-            style="Club.Treeview", height=4)
-        bwidths = {"ID": 50, "Cancha": 230, "Desde": 110, "Hasta": 110, "Motivo": 240}
+            style="Club.Treeview", height=6)
+        bwidths = {"ID": 50, "Cancha": 220, "Desde": 110, "Hasta": 110, "Motivo": 230}
         for c in bcols:
             self.btree.heading(c, text=c)
             self.btree.column(c, width=bwidths.get(c, 100), anchor="center")
@@ -271,10 +288,6 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.btree.configure(yscrollcommand=scrollbar_b.set)
         self.btree.pack(side="left", fill="both", expand=True)
         scrollbar_b.pack(side="right", fill="y")
-
-        self.cargar_canchas()
-        self._cargar_bloqueos()
-        self.after(150, self._mostrar_ventana)
 
     # ── Estilos ───────────────────────────────────────────────────────────────
 
@@ -307,7 +320,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if not sel:
             self._cancha_sel_id = None
             self._lbl_sel.configure(
-                text="Seleccioná una cancha de la lista para editar su duración",
+                text="Seleccioná una cancha para editar su duración",
                 text_color="#333333")
             self._btn_actualizar.configure(state="disabled")
             return
@@ -328,7 +341,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         actualizar_duracion_cancha(self._cancha_sel_id, dur)
         self.cargar_canchas()
         messagebox.showinfo("Listo",
-            f"Duración actualizada a {dur} minutos.\nLas nuevas reservas usarán esta duración.")
+            f"Duración actualizada a {dur} minutos.")
 
     def cargar_canchas(self):
         for item in self.tree.get_children():
@@ -338,7 +351,6 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.combo_bloqueo_cancha.configure(values=opciones if opciones else [""])
         if opciones:
             self.combo_bloqueo_cancha.set(opciones[0])
-
         for fila in self._canchas_cache:
             cid, nombre, tipo, _, duracion = fila
             tipo_raw = tipo.lower().replace("á", "a").replace("ú", "u")
@@ -371,14 +383,14 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if not seleccion:
             messagebox.showwarning("Atención", "Seleccioná una cancha para eliminar.")
             return
-        cancha    = self.tree.item(seleccion[0], "values")
+        cancha = self.tree.item(seleccion[0], "values")
         cancha_id, nombre = cancha[0], cancha[1]
         if messagebox.askyesno("Confirmar", f"¿Eliminar la cancha '{nombre}'?"):
             eliminar_cancha(cancha_id)
             self._cancha_sel_id = None
             self._btn_actualizar.configure(state="disabled")
             self._lbl_sel.configure(
-                text="Seleccioná una cancha de la lista para editar su duración",
+                text="Seleccioná una cancha para editar su duración",
                 text_color="#333333")
             self.cargar_canchas()
             self._cargar_bloqueos()
@@ -390,11 +402,8 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if not sel_cancha or sel_cancha == "":
             messagebox.showwarning("Error", "Seleccioná una cancha para bloquear.")
             return
-
         cancha_id = next(
-            (r[0] for r in self._canchas_cache if f"{r[1]} ({r[2]})" == sel_cancha),
-            None
-        )
+            (r[0] for r in self._canchas_cache if f"{r[1]} ({r[2]})" == sel_cancha), None)
         if cancha_id is None:
             messagebox.showwarning("Error", "No se pudo identificar la cancha.")
             return
@@ -404,11 +413,9 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         motivo      = sanitizar_texto(self.entry_motivo.get(), max_largo=200)
 
         if fecha_hasta < fecha_desde:
-            messagebox.showerror("Error",
-                "La fecha 'hasta' debe ser igual o posterior a 'desde'.")
+            messagebox.showerror("Error", "La fecha 'hasta' debe ser igual o posterior a 'desde'.")
             return
 
-        # Verificar reservas afectadas
         afectadas = reservas_afectadas_por_bloqueo(cancha_id, fecha_desde, fecha_hasta)
         if afectadas:
             detalle = "\n".join(
@@ -417,14 +424,9 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             )
             if len(afectadas) > 8:
                 detalle += f"\n  ... y {len(afectadas)-8} más"
-            ok = messagebox.askyesno(
-                "Reservas afectadas",
-                f"Este bloqueo afecta {len(afectadas)} reserva(s) existente(s):\n\n"
-                f"{detalle}\n\n"
-                "Estas reservas NO se eliminan automáticamente.\n"
-                "¿Continuar con el bloqueo de todas formas?"
-            )
-            if not ok:
+            if not messagebox.askyesno("Reservas afectadas",
+                f"Este bloqueo afecta {len(afectadas)} reserva(s):\n\n{detalle}\n\n"
+                "Estas reservas NO se eliminan automáticamente.\n¿Continuar?"):
                 return
 
         insertar_bloqueo(cancha_id, fecha_desde, fecha_hasta, motivo)
@@ -437,14 +439,13 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         for item in self.btree.get_children():
             self.btree.delete(item)
         for fila in listar_bloqueos_futuros():
-            # (id, cancha_nombre, cancha_id, fecha_desde, fecha_hasta, motivo)
             self.btree.insert("", "end",
                 values=(fila[0], fila[1], fila[3], fila[4], fila[5]))
 
     def _finalizar_mantenimiento_hoy(self):
         sel = self.btree.selection()
         if not sel:
-            messagebox.showwarning("Atención", "Seleccioná un bloqueo para finalizar.")
+            messagebox.showwarning("Atención", "Seleccioná un bloqueo de la lista.")
             return
         v = self.btree.item(sel[0], "values")
         bloqueo_id, cancha_nombre = int(v[0]), v[1]
@@ -458,7 +459,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
     def _quitar_bloqueo(self):
         sel = self.btree.selection()
         if not sel:
-            messagebox.showwarning("Atención", "Seleccioná un bloqueo para eliminar.")
+            messagebox.showwarning("Atención", "Seleccioná un bloqueo de la lista.")
             return
         v = self.btree.item(sel[0], "values")
         bloqueo_id, cancha_nombre = int(v[0]), v[1]
