@@ -43,6 +43,16 @@ def insertar_bloqueo(cancha_id: int, fecha_desde, fecha_hasta, motivo: str = "")
         return b.id
 
 
+def finalizar_bloqueo_hoy(bloqueo_id: int):
+    """Adelanta fecha_hasta al día de hoy, liberando la cancha inmediatamente."""
+    hoy = date_type.today()
+    with get_connection() as session:
+        b = session.query(BloqueoCancha).filter_by(id=bloqueo_id).first()
+        if b:
+            b.fecha_hasta = hoy
+            session.commit()
+
+
 def eliminar_bloqueo(bloqueo_id: int):
     with get_connection() as session:
         b = session.query(BloqueoCancha).filter_by(id=bloqueo_id).first()

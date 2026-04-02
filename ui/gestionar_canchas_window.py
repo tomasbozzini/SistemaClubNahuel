@@ -10,7 +10,7 @@ from models.canchas_service import (
 )
 from models.bloqueos_service import (
     listar_bloqueos_futuros, insertar_bloqueo, eliminar_bloqueo,
-    reservas_afectadas_por_bloqueo,
+    finalizar_bloqueo_hoy, reservas_afectadas_por_bloqueo,
 )
 from utils.validaciones import sanitizar_texto
 
@@ -251,12 +251,23 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
 
         ctk.CTkFrame(blist_card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(8, 0))
-        ctk.CTkButton(blist_card, text="QUITAR BLOQUEO SELECCIONADO",
+
+        barra_bloqueos = ctk.CTkFrame(blist_card, fg_color="transparent")
+        barra_bloqueos.pack(fill="x")
+
+        ctk.CTkButton(barra_bloqueos, text="TERMINAR MANTENIMIENTO HOY",
+            command=self._finalizar_mantenimiento_hoy,
+            fg_color="transparent", hover_color="#1A1200",
+            text_color="#FFD700", border_color="#2A2200", border_width=1,
+            corner_radius=0, height=36, font=("Arial", 11, "bold"),
+        ).pack(side="left", fill="x", expand=True)
+
+        ctk.CTkButton(barra_bloqueos, text="ELIMINAR BLOQUEO",
             command=self._quitar_bloqueo,
             fg_color="transparent", hover_color="#1A0000",
             text_color="#FF5C5C", border_color="#2A0000", border_width=1,
-            corner_radius=0, height=36, font=("Arial", 11, "bold"),
-        ).pack(fill="x")
+            corner_radius=0, height=36, width=180, font=("Arial", 11, "bold"),
+        ).pack(side="right")
 
         self.cargar_canchas()
         self._cargar_bloqueos()
@@ -427,14 +438,28 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             self.btree.insert("", "end",
                 values=(fila[0], fila[1], fila[3], fila[4], fila[5]))
 
-    def _quitar_bloqueo(self):
+    def _finalizar_mantenimiento_hoy(self):
         sel = self.btree.selection()
         if not sel:
-            messagebox.showwarning("Atención", "Seleccioná un bloqueo para quitar.")
+            messagebox.showwarning("Atención", "Seleccioná un bloqueo para finalizar.")
             return
         v = self.btree.item(sel[0], "values")
         bloqueo_id, cancha_nombre = int(v[0]), v[1]
         if messagebox.askyesno("Confirmar",
-            f"¿Quitar el bloqueo de '{cancha_nombre}' ({v[2]} → {v[3]})?"):
+            f"¿Terminar el mantenimiento de '{cancha_nombre}' hoy?\n"
+            "La cancha quedará disponible de inmediato."):
+            finalizar_bloqueo_hoy(bloqueo_id)
+            self._cargar_bloqueos()
+            messagebox.showinfo("Listo", f"'{cancha_nombre}' ya está disponible.")
+
+    def _quitar_bloqueo(self):
+        sel = self.btree.selection()
+        if not sel:
+            messagebox.showwarning("Atención", "Seleccioná un bloqueo para eliminar.")
+            return
+        v = self.btree.item(sel[0], "values")
+        bloqueo_id, cancha_nombre = int(v[0]), v[1]
+        if messagebox.askyesno("Confirmar",
+            f"¿Eliminar el bloqueo de '{cancha_nombre}' ({v[2]} → {v[3]})?"):
             eliminar_bloqueo(bloqueo_id)
             self._cargar_bloqueos()
