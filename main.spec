@@ -7,7 +7,7 @@ datas += collect_data_files('customtkinter')
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=[('C:/Program Files/Python311/python311.dll', '.')],
     datas=datas,
     hiddenimports=[
         'bcrypt',
