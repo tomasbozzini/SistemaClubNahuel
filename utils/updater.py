@@ -42,7 +42,7 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
                     f"Descarga incompleta: {descargado} de {total} bytes."
                 )
 
-            # Desbloquear el archivo (Windows marca los descargados como no confiables)
+            # Desbloquear el archivo (Windows lo marca como descargado de internet)
             try:
                 subprocess.run(
                     ["powershell", "-Command", f'Unblock-File -Path "{dest}"'],
@@ -64,28 +64,29 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
 def aplicar_actualizacion(ruta_nueva: str):
     """
     Reemplaza el exe actual con ruta_nueva y reinicia la app.
-    Usa un .bat intermedio porque Windows no permite reemplazar
-    un ejecutable mientras está corriendo.
+    Usa PowerShell para evitar que variables de entorno de PyInstaller
+    (_MEIPASS2) se hereden al nuevo proceso y rompan la carga del DLL.
     """
     exe_actual = _exe_path()
     exe_dir    = os.path.dirname(exe_actual)
-    bat_path   = os.path.join(exe_dir, "_update_helper.bat")
 
-    bat = (
-        "@echo off\n"
-        # Esperar 6 segundos para que el proceso anterior libere el archivo
-        "ping -n 7 127.0.0.1 > NUL\n"
-        f'move /y "{ruta_nueva}" "{exe_actual}"\n'
-        # Cambiar al directorio del exe antes de lanzarlo
-        f'cd /d "{exe_dir}"\n'
-        f'start "" "{exe_actual}"\n'
-        'del "%~f0"\n'
+    # PowerShell: esperar, reemplazar, limpiar env de PyInstaller, lanzar limpio
+    ps_cmd = (
+        f"Start-Sleep -Seconds 6; "
+        f"Move-Item -Force '{ruta_nueva}' '{exe_actual}'; "
+        f"$env:_MEIPASS2 = $null; "
+        f"Remove-Item Env:_MEIPASS2 -ErrorAction SilentlyContinue; "
+        f"Start-Process -FilePath '{exe_actual}' "
+        f"-WorkingDirectory '{exe_dir}'"
     )
-    with open(bat_path, "w") as f:
-        f.write(bat)
 
     subprocess.Popen(
-        ["cmd.exe", "/c", bat_path],
+        [
+            "powershell",
+            "-WindowStyle", "Hidden",
+            "-NonInteractive",
+            "-Command", ps_cmd,
+        ],
         creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
         close_fds=True,
     )
