@@ -63,17 +63,17 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
 
 def aplicar_actualizacion(ruta_nueva: str):
     """
-    Reemplaza el exe actual con ruta_nueva usando un VBScript,
-    luego cierra el programa. El usuario reabre manualmente.
+    Reemplaza el exe actual con ruta_nueva.
+    VBScript guardado en %TEMP%, usa cmd /c move para el reemplazo.
     """
     exe_actual = _exe_path()
-    exe_dir    = os.path.dirname(exe_actual)
-    vbs_path   = os.path.join(exe_dir, "_update_helper.vbs")
+    tmp        = tempfile.gettempdir()
+    vbs_path   = os.path.join(tmp, "_update_helper.vbs")
 
     vbs = (
-        'WScript.Sleep 4000\n'
-        'Set fso = CreateObject("Scripting.FileSystemObject")\n'
-        f'fso.MoveFile "{ruta_nueva}", "{exe_actual}"\n'
+        'WScript.Sleep 8000\n'
+        'Set sh = WScript.CreateObject("WScript.Shell")\n'
+        f'sh.Run "cmd /c move /y ""{ruta_nueva}"" ""{exe_actual}""", 0, True\n'
         'WScript.Quit\n'
     )
     with open(vbs_path, "w") as f:
