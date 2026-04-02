@@ -63,21 +63,17 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
 
 def aplicar_actualizacion(ruta_nueva: str):
     """
-    Reemplaza el exe actual con ruta_nueva y reinicia la app.
-    Usa VBScript + ShellExecute para lanzar el nuevo exe exactamente
-    igual que si el usuario hiciera doble click — evita problemas de
-    contexto/DLL que ocurren al lanzar desde procesos hijos detached.
+    Reemplaza el exe actual con ruta_nueva usando un VBScript,
+    luego cierra el programa. El usuario reabre manualmente.
     """
     exe_actual = _exe_path()
     exe_dir    = os.path.dirname(exe_actual)
     vbs_path   = os.path.join(exe_dir, "_update_helper.vbs")
 
     vbs = (
-        'WScript.Sleep 6000\n'
+        'WScript.Sleep 4000\n'
         'Set fso = CreateObject("Scripting.FileSystemObject")\n'
         f'fso.MoveFile "{ruta_nueva}", "{exe_actual}"\n'
-        'Set sh = CreateObject("Shell.Application")\n'
-        f'sh.ShellExecute "{exe_actual}", "", "{exe_dir}", "open", 1\n'
         'WScript.Quit\n'
     )
     with open(vbs_path, "w") as f:
