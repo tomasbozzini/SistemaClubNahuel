@@ -407,18 +407,14 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
                 font=("Arial", 11), text_color="#FFD700"
             ).pack(side="left", padx=(12, 4), pady=6)
 
-            def _descargar():
-                if url:
-                    import webbrowser
-                    webbrowser.open(url)
-
-            ctk.CTkButton(
-                banner, text="Descargar actualización",
-                command=_descargar,
+            btn_update = ctk.CTkButton(
+                banner, text="Actualizar ahora",
+                command=lambda: self._iniciar_descarga_update(url, banner),
                 fg_color="#3A2800", hover_color="#5A4000",
                 text_color="#FFD700", border_color="#5A4000", border_width=1,
-                corner_radius=6, width=180, height=26, font=("Arial", 10, "bold")
-            ).pack(side="left", padx=4, pady=6)
+                corner_radius=6, width=160, height=26, font=("Arial", 10, "bold")
+            )
+            btn_update.pack(side="left", padx=4, pady=6)
 
             ctk.CTkButton(
                 banner, text="✕", command=banner.destroy,
@@ -427,6 +423,59 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             ).pack(side="right", padx=8, pady=6)
         except Exception:
             pass
+
+    def _iniciar_descarga_update(self, url, banner):
+        if not url:
+            return
+        from utils.updater import descargar_actualizacion, aplicar_actualizacion
+
+        # Ventana de progreso
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Actualizando")
+        dlg.resizable(False, False)
+        dlg.configure(fg_color="#0D0D0D")
+        dlg.transient(self)
+        dlg.grab_set()
+        dlg.protocol("WM_DELETE_WINDOW", lambda: None)  # no se puede cerrar
+
+        w, h = 380, 160
+        dlg.geometry(f"{w}x{h}+{self.winfo_rootx() + self.winfo_width()//2 - w//2}"
+                     f"+{self.winfo_rooty() + self.winfo_height()//2 - h//2}")
+
+        ctk.CTkFrame(dlg, height=4, fg_color="#FFD700", corner_radius=0).pack(fill="x")
+        ctk.CTkLabel(dlg, text="Descargando actualización...",
+                     font=("Arial Black", 13, "bold"), text_color="#FFFFFF").pack(pady=(18, 6))
+
+        lbl_pct = ctk.CTkLabel(dlg, text="0%", font=("Arial", 11), text_color="#FFD700")
+        lbl_pct.pack()
+
+        barra = ctk.CTkProgressBar(dlg, width=320, height=12,
+                                   fg_color="#1A1A1A", progress_color="#FFD700")
+        barra.set(0)
+        barra.pack(pady=(8, 0))
+
+        def _progress(desc, total):
+            pct = (desc / total) if total else 0
+            self.after(0, lambda: barra.set(pct))
+            self.after(0, lambda: lbl_pct.configure(
+                text=f"{int(pct * 100)}%  ({desc // 1024 // 1024:.1f} MB)"
+            ))
+
+        def _done(ruta):
+            self.after(0, lambda: lbl_pct.configure(text="Reiniciando..."))
+            self.after(0, lambda: barra.set(1))
+            self.after(800, lambda: aplicar_actualizacion(ruta))
+
+        def _error(exc):
+            self.after(0, dlg.destroy)
+            self.after(0, lambda: __import__("tkinter.messagebox",
+                fromlist=["showerror"]).showerror(
+                    "Error al actualizar",
+                    f"No se pudo descargar la actualización.\n{exc}"
+            ))
+
+        banner.destroy()
+        descargar_actualizacion(url, on_progress=_progress, on_done=_done, on_error=_error)
 
     # ── Ciclos periódicos ─────────────────────────────────────────────────────
 
