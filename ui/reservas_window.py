@@ -77,6 +77,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self.configure(fg_color="#0D0D0D")
 
         self._autocomplete_popup = None
+        self._debounce_id = None
 
         # Barra de acento
         ctk.CTkFrame(self, height=4, fg_color="#A3F843", corner_radius=0).pack(fill="x")
@@ -114,17 +115,16 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         # Cancha
         ctk.CTkLabel(card, text="CANCHA", **lbl_kw).pack(anchor="w", padx=28, pady=(16, 4))
-        self.canchas = listar_canchas_con_precio()
-        opciones = [f"{r[1]} ({r[2]})" for r in self.canchas]
+        self.canchas = []
 
-        self.combo_cancha = ctk.CTkComboBox(card, values=opciones, width=432, height=40,
+        self.combo_cancha = ctk.CTkComboBox(card, values=["Cargando..."], width=432, height=40,
             fg_color="#1A1A1A", border_color="#252525", border_width=1,
             text_color="#FFFFFF", button_color="#252525", button_hover_color="#A3F843",
             dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF", corner_radius=10,
             command=self._actualizar_hint)
-        if opciones:
-            self.combo_cancha.set(opciones[0])
+        self.combo_cancha.set("Cargando...")
         self.combo_cancha.pack(padx=28)
+        self._cargar_canchas_async()
 
         # Hint de duración/precio
         self.lbl_hint = ctk.CTkLabel(card, text="",
@@ -195,31 +195,69 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         # Botón guardar
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(16, 0))
-        ctk.CTkButton(card, text="GUARDAR RESERVA  →", command=self.guardar,
+        self.btn_guardar = ctk.CTkButton(card, text="GUARDAR RESERVA  →", command=self.guardar,
             fg_color="#A3F843", hover_color="#C5FF6B", text_color="#0D0D0D",
             font=("Arial Black", 13, "bold"), corner_radius=0, width=520, height=46
-        ).pack(fill="x")
+        )
+        self.btn_guardar.pack(fill="x")
 
         self.after(150, self._mostrar_ventana)
+
+    # ── Carga de canchas ──────────────────────────────────────────────────────
+
+    def _cargar_canchas_async(self):
+        import threading
+        def _worker():
+            try:
+                canchas = listar_canchas_con_precio()
+                self.after(0, lambda: self._poblar_combo_canchas(canchas))
+            except Exception:
+                self.after(0, lambda: self.combo_cancha.configure(values=["Error al cargar"]))
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _poblar_combo_canchas(self, canchas):
+        if not self.winfo_exists():
+            return
+        self.canchas = canchas
+        opciones = [f"{r[1]} ({r[2]})" for r in canchas]
+        self.combo_cancha.configure(values=opciones if opciones else ["Sin canchas"])
+        if opciones:
+            self.combo_cancha.set(opciones[0])
+        self._actualizar_hint()
 
     # ── Autocompletado ────────────────────────────────────────────────────────
 
     def _on_cliente_key(self, event):
-        # Ignorar teclas de navegación
         if event.keysym in ("Up", "Down", "Return", "Escape", "Tab"):
             return
         self._cerrar_autocomplete()
+        # Debounce: esperar 300 ms sin teclas antes de consultar
+        if self._debounce_id:
+            self.after_cancel(self._debounce_id)
+        self._debounce_id = self.after(300, self._buscar_autocomplete)
+
+    def _buscar_autocomplete(self):
+        import threading
+        self._debounce_id = None
         texto = self.entry_cliente.get().strip()
-        if len(texto) >= 2:
+        if len(texto) < 2:
+            return
+        def _worker():
             try:
                 from models.clientes_service import buscar_clientes
                 items = buscar_clientes(texto)
-                if items:
-                    self._autocomplete_popup = _AutocompletePopup(
-                        self, self.entry_cliente, items, self._seleccionar_cliente
-                    )
+                self.after(0, lambda: self._mostrar_autocomplete(items))
             except Exception:
                 pass
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _mostrar_autocomplete(self, items):
+        if not self.winfo_exists():
+            return
+        if items:
+            self._autocomplete_popup = _AutocompletePopup(
+                self, self.entry_cliente, items, self._seleccionar_cliente
+            )
 
     def _cerrar_autocomplete(self):
         if self._autocomplete_popup:
@@ -269,6 +307,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
     # ── Guardar ───────────────────────────────────────────────────────────────
 
     def guardar(self):
+        import threading
         self._cerrar_autocomplete()
 
         cliente   = sanitizar_texto(self.entry_cliente.get(), max_largo=100)
@@ -309,36 +348,77 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             messagebox.showerror("Error", "No se pudo identificar la cancha seleccionada.")
             return
 
-        # Reserva recurrente
-        if self.var_recurrente.get():
+        es_recurrente = self.var_recurrente.get()
+        fecha_hasta = None
+        if es_recurrente:
             fecha_hasta = self.date_hasta.get_date().isoformat()
             if fecha_hasta <= fecha:
                 messagebox.showerror("Error",
                     "La fecha 'hasta' debe ser posterior a la fecha de inicio.")
                 return
-            exitosas, conflictos, fechas_conf = insertar_reservas_recurrentes(
-                cliente, cancha_id, fecha, hora, obs, celular, fecha_hasta
-            )
-            if exitosas == 0:
-                messagebox.showerror("Sin disponibilidad",
-                    "No se pudo crear ninguna reserva.\n"
-                    "Todas las fechas tienen conflictos o la cancha está bloqueada.")
-                return
-            msg = f"Se crearon {exitosas} reserva(s) semanales."
-            if conflictos:
-                omitidas = "\n".join(fechas_conf[:5])
-                if len(fechas_conf) > 5:
-                    omitidas += f"\n... y {len(fechas_conf)-5} más"
-                msg += f"\n\n{conflictos} fecha(s) omitida(s) por conflicto:\n{omitidas}"
-            messagebox.showinfo("Reservas creadas", msg)
-        else:
-            error = verificar_slot(cancha_id, fecha, hora)
-            if error:
-                messagebox.showerror("Sin disponibilidad", error)
-                return
-            reserva_id = insertar_reserva(cliente, cancha_id, fecha, hora, obs, celular)
-            messagebox.showinfo("Reserva guardada",
-                f"Reserva #{reserva_id} registrada correctamente.")
 
+        # Deshabilitar botón mientras procesa
+        self.btn_guardar.configure(state="disabled", text="Guardando...")
+        self.configure(cursor="watch")
+
+        def _worker():
+            try:
+                if es_recurrente:
+                    exitosas, conflictos, fechas_conf = insertar_reservas_recurrentes(
+                        cliente, cancha_id, fecha, hora, obs, celular, fecha_hasta
+                    )
+                    self.after(0, lambda: self._on_guardado_recurrente(exitosas, conflictos, fechas_conf))
+                else:
+                    error = verificar_slot(cancha_id, fecha, hora)
+                    if error:
+                        self.after(0, lambda: self._on_slot_error(error))
+                        return
+                    rid = insertar_reserva(cliente, cancha_id, fecha, hora, obs, celular)
+                    self.after(0, lambda: self._on_guardado_ok(rid))
+            except Exception as e:
+                self.after(0, lambda: self._on_guardar_error(str(e)))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_guardar_error(self, msg):
+        if not self.winfo_exists():
+            return
+        self.configure(cursor="")
+        self.btn_guardar.configure(state="normal", text="GUARDAR RESERVA  →")
+        messagebox.showerror("Error", msg)
+
+    def _on_slot_error(self, error):
+        if not self.winfo_exists():
+            return
+        self.configure(cursor="")
+        self.btn_guardar.configure(state="normal", text="GUARDAR RESERVA  →")
+        messagebox.showerror("Sin disponibilidad", error)
+
+    def _on_guardado_ok(self, reserva_id):
+        if not self.winfo_exists():
+            return
+        self.configure(cursor="")
+        messagebox.showinfo("Reserva guardada",
+            f"Reserva #{reserva_id} registrada correctamente.")
+        self.event_generate("<<ReservaGuardada>>", when="tail")
+        self.destroy()
+
+    def _on_guardado_recurrente(self, exitosas, conflictos, fechas_conf):
+        if not self.winfo_exists():
+            return
+        self.configure(cursor="")
+        if exitosas == 0:
+            self.btn_guardar.configure(state="normal", text="GUARDAR RESERVA  →")
+            messagebox.showerror("Sin disponibilidad",
+                "No se pudo crear ninguna reserva.\n"
+                "Todas las fechas tienen conflictos o la cancha está bloqueada.")
+            return
+        msg = f"Se crearon {exitosas} reserva(s) semanales."
+        if conflictos:
+            omitidas = "\n".join(fechas_conf[:5])
+            if len(fechas_conf) > 5:
+                omitidas += f"\n... y {len(fechas_conf)-5} más"
+            msg += f"\n\n{conflictos} fecha(s) omitida(s) por conflicto:\n{omitidas}"
+        messagebox.showinfo("Reservas creadas", msg)
         self.event_generate("<<ReservaGuardada>>", when="tail")
         self.destroy()

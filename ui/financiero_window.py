@@ -238,6 +238,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         self._aplicar_filtros()
 
     def _aplicar_filtros(self):
+        import threading
         hoy = date.today()
         if self._periodo == "hoy":
             desde, hasta = hoy, hoy
@@ -248,13 +249,36 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         else:
             desde, hasta = None, None
 
-        filas = listar_historial_financiero(
-            fecha_desde=desde,
-            fecha_hasta=hasta,
-            cancha_id=self._cancha_id,
-        )
+        # Limpiar tabla y mostrar cursor de espera
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        self._lbl_count.configure(text="Cargando...")
+        self.configure(cursor="watch")
+
+        periodo    = self._periodo
+        cancha_id  = self._cancha_id
+
+        def _worker():
+            try:
+                filas = listar_historial_financiero(
+                    fecha_desde=desde,
+                    fecha_hasta=hasta,
+                    cancha_id=cancha_id,
+                )
+                datos = totales_financieros()
+                self.after(0, lambda: self._poblar_resultados(filas, datos))
+            except Exception as e:
+                self.after(0, lambda: self._lbl_count.configure(text="Error al cargar"))
+                self.after(0, lambda: self.configure(cursor=""))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _poblar_resultados(self, filas, datos):
+        if not self.winfo_exists():
+            return
+        self.configure(cursor="")
         self._cargar_tabla(filas)
-        self._actualizar_totales()
+        self._mostrar_totales(datos)
 
     def _cargar_tabla(self, filas: list):
         self._filas_actuales = filas
@@ -285,7 +309,18 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         )
 
     def _actualizar_totales(self):
-        datos = totales_financieros()
+        import threading
+        def _worker():
+            try:
+                datos = totales_financieros()
+                self.after(0, lambda: self._mostrar_totales(datos))
+            except Exception:
+                pass
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _mostrar_totales(self, datos):
+        if not self.winfo_exists():
+            return
         self._lbl_totales["hoy"].configure(text=_fmt_peso(datos["hoy"]))
         self._lbl_totales["mes"].configure(text=_fmt_peso(datos["mes"]))
         self._lbl_totales["anio"].configure(text=_fmt_peso(datos["anio"]))

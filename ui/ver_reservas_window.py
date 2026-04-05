@@ -236,49 +236,68 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self.cargar_reservas()
 
     def cargar_reservas(self):
+        import threading
         for item in self.tree.get_children():
             self.tree.delete(item)
         self._separadores = set()
-        self._filas = listar_reservas()
-        filas = self._filas
-        if self._orden_deporte:
-            filas = sorted(filas, key=lambda f: (f[3].lower(), f[4], f[5]))
+        self.lbl_count.configure(text="Cargando...")
+        self.configure(cursor="watch")
 
-        individuales = [f for f in filas if (f[10] if len(f) > 10 else 0) <= 1]
-        recurrentes  = [f for f in filas if (f[10] if len(f) > 10 else 0) > 1]
+        def _worker():
+            try:
+                filas = listar_reservas()
+                self.after(0, lambda: self._poblar_tabla(filas))
+            except Exception as e:
+                self.after(0, lambda: self.lbl_count.configure(text="Error al cargar"))
+                self.after(0, lambda: self.configure(cursor=""))
 
-        def _insertar_seccion(titulo, cantidad):
-            sep_label = f"  {titulo}  ({cantidad})"
-            vacío = ("", sep_label, "", "", "", "", "", "", "")
-            iid = self.tree.insert("", tk.END, values=vacío, tags=("seccion",))
-            self._separadores.add(iid)
+        threading.Thread(target=_worker, daemon=True).start()
 
-        def _insertar_fila(f):
-            # f: (id[0], cliente[1], cancha[2], tipo[3], fecha[4], hora[5],
-            #     notas[6], telefono[7], estado_pago[8], grupo_recurrente_id[9], total_serie[10])
-            tipo_raw    = f[3].lower().replace("á", "a").replace("ú", "u")
-            tag         = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
-            pago_text   = _LABEL_PAGO.get(f[8], f[8])
-            total_serie = f[10] if len(f) > 10 else 0
-            if total_serie > 1:
-                notas_text = f"↺ {total_serie} fechas" + (f"  |  {f[6]}" if f[6] else "")
-            else:
-                notas_text = f[6]
-            display = (f[0], f[1], f[7], f[2], f[3], f[4], f[5], pago_text, notas_text)
-            self.tree.insert("", tk.END, values=display, tags=(tag,))
+    def _poblar_tabla(self, filas):
+        try:
+            if not self.winfo_exists():
+                return
+            self.configure(cursor="")
+            self._filas = filas
+            tabla_filas = filas
+            if self._orden_deporte:
+                tabla_filas = sorted(tabla_filas, key=lambda f: (f[3].lower(), f[4], f[5]))
 
-        if individuales:
-            _insertar_seccion("RESERVAS DEL DÍA", len(individuales))
-            for f in individuales:
-                _insertar_fila(f)
+            individuales = [f for f in tabla_filas if (f[10] if len(f) > 10 else 0) <= 1]
+            recurrentes  = [f for f in tabla_filas if (f[10] if len(f) > 10 else 0) > 1]
 
-        if recurrentes:
-            _insertar_seccion("RESERVAS FIJAS", len(recurrentes))
-            for f in recurrentes:
-                _insertar_fila(f)
+            def _insertar_seccion(titulo, cantidad):
+                sep_label = f"  {titulo}  ({cantidad})"
+                vacío = ("", sep_label, "", "", "", "", "", "", "")
+                iid = self.tree.insert("", tk.END, values=vacío, tags=("seccion",))
+                self._separadores.add(iid)
 
-        n = len(filas)
-        self.lbl_count.configure(text=f"{n} turno{'s' if n != 1 else ''}")
+            def _insertar_fila(f):
+                tipo_raw    = f[3].lower().replace("á", "a").replace("ú", "u")
+                tag         = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
+                pago_text   = _LABEL_PAGO.get(f[8], f[8])
+                total_serie = f[10] if len(f) > 10 else 0
+                if total_serie > 1:
+                    notas_text = f"↺ {total_serie} fechas" + (f"  |  {f[6]}" if f[6] else "")
+                else:
+                    notas_text = f[6]
+                display = (f[0], f[1], f[7], f[2], f[3], f[4], f[5], pago_text, notas_text)
+                self.tree.insert("", tk.END, values=display, tags=(tag,))
+
+            if individuales:
+                _insertar_seccion("RESERVAS DEL DÍA", len(individuales))
+                for f in individuales:
+                    _insertar_fila(f)
+
+            if recurrentes:
+                _insertar_seccion("RESERVAS FIJAS", len(recurrentes))
+                for f in recurrentes:
+                    _insertar_fila(f)
+
+            n = len(filas)
+            self.lbl_count.configure(text=f"{n} turno{'s' if n != 1 else ''}")
+        except Exception:
+            pass
 
     def _fila_seleccionada(self):
         """Retorna la fila de datos completa del item seleccionado, o None."""
@@ -348,9 +367,15 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         ).pack(pady=(12, 0))
 
     def _aplicar_pago(self, reserva_id, estado, dlg):
-        actualizar_estado_pago(reserva_id, estado)
+        import threading
         dlg.destroy()
-        self.cargar_reservas()
+        def _worker():
+            try:
+                actualizar_estado_pago(reserva_id, estado)
+                self.after(0, self.cargar_reservas)
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Error", str(e)))
+        threading.Thread(target=_worker, daemon=True).start()
 
     # ── WhatsApp ──────────────────────────────────────────────────────────────
 
@@ -393,14 +418,24 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
     # ── Eliminar ──────────────────────────────────────────────────────────────
 
     def eliminar_reserva_seleccionada(self):
+        import threading
         fila = self._fila_seleccionada()
         if not fila:
             messagebox.showwarning("Atención", "Seleccioná una reserva para eliminar.")
             return
 
-        reserva_id  = fila[0]
-        grupo_id    = fila[9]
+        reserva_id    = fila[0]
+        grupo_id      = fila[9]
         fecha_reserva = fila[4]
+
+        def _borrar(fn, *args):
+            def _worker():
+                try:
+                    fn(*args)
+                    self.after(0, self.cargar_reservas)
+                except Exception as e:
+                    self.after(0, lambda: messagebox.showerror("Error", str(e)))
+            threading.Thread(target=_worker, daemon=True).start()
 
         if grupo_id:
             dlg = _DialogEliminarRecurrente(self)
@@ -409,13 +444,10 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
             if dlg.result == "futuras":
                 if messagebox.askyesno("Confirmar",
                     f"¿Eliminar la reserva #{reserva_id} y todas las futuras de la serie?"):
-                    eliminar_reservas_futuras_del_grupo(grupo_id, fecha_reserva)
-                    self.cargar_reservas()
+                    _borrar(eliminar_reservas_futuras_del_grupo, grupo_id, fecha_reserva)
             else:
                 if messagebox.askyesno("Confirmar", f"¿Eliminar solo la reserva #{reserva_id}?"):
-                    eliminar_reserva(reserva_id)
-                    self.cargar_reservas()
+                    _borrar(eliminar_reserva, reserva_id)
         else:
             if messagebox.askyesno("Confirmar", f"¿Eliminar la reserva #{reserva_id}?"):
-                eliminar_reserva(reserva_id)
-                self.cargar_reservas()
+                _borrar(eliminar_reserva, reserva_id)

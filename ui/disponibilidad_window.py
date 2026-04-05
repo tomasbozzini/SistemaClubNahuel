@@ -224,26 +224,41 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
     # ── Lógica ────────────────────────────────────────────────────────────────
 
     def _refrescar(self):
+        import threading
         fecha_str = self._date_entry.get()
         try:
             fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
         except ValueError:
             fecha = date.today()
-        self._build_grid(fecha)
+
+        self._lbl_update.configure(text="Actualizando...")
+        self.configure(cursor="watch")
+
+        def _worker():
+            try:
+                canchas  = listar_canchas_con_precio()
+                reservas = listar_reservas_por_fecha(fecha)
+                self.after(0, lambda: self._build_grid(fecha, canchas, reservas))
+            except Exception:
+                self.after(0, lambda: self.configure(cursor=""))
+                self.after(0, lambda: self._lbl_update.configure(text="Error al actualizar"))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _build_grid(self, fecha_date: date, canchas, reservas):
+        if not self.winfo_exists():
+            return
+        self.configure(cursor="")
         self._lbl_update.configure(
             text=f"Actualizado: {datetime.now().strftime('%H:%M:%S')}"
         )
 
-    def _build_grid(self, fecha_date: date):
         for w in self._hdr_frame.winfo_children():
             w.destroy()
         for w in self._time_frame.winfo_children():
             w.destroy()
         for w in self._body_frame.winfo_children():
             w.destroy()
-
-        canchas  = listar_canchas_con_precio()  # (id, nombre, tipo, precio, duracion_minutos)
-        reservas = listar_reservas_por_fecha(fecha_date)
 
         # Duración por cancha (en minutos)
         dur_map = {c[0]: (c[4] or 60) for c in canchas}
@@ -354,9 +369,16 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         win.bind("<<ReservaGuardada>>", lambda e: self._refrescar())
 
     def _iniciar_auto_refresh(self):
+        # Solo programa el próximo ciclo; el primer refresh ya lo hizo _build_ui
+        try:
+            self._auto_refresh_id = self.after(60_000, self._auto_refresh_ciclo)
+        except Exception:
+            pass
+
+    def _auto_refresh_ciclo(self):
         self._refrescar()
         try:
-            self._auto_refresh_id = self.after(60_000, self._iniciar_auto_refresh)
+            self._auto_refresh_id = self.after(60_000, self._auto_refresh_ciclo)
         except Exception:
             pass
 

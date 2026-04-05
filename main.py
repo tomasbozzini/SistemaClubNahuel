@@ -1,11 +1,19 @@
 # main.py
 if __name__ == "__main__":
     import tkinter as tk
+    import threading
     from tkinter import messagebox
 
     try:
-        from db.migracion_v2 import migrar
-        migrar()
+        # Migración en background — la ventana de login aparece de inmediato
+        def _migrar_bg():
+            try:
+                from db.migracion_v2 import migrar
+                migrar()
+            except Exception as e:
+                print(f"[migrar] {e}")
+
+        threading.Thread(target=_migrar_bg, daemon=True).start()
 
         from ui.login_window import LoginWindow
         app = LoginWindow()
