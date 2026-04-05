@@ -481,20 +481,29 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
     # ── Ciclos periódicos ─────────────────────────────────────────────────────
 
     def limpiar_reservas_periodicamente(self):
+        import threading
         from models.reservas_service import eliminar_reservas_expiradas
-        try:
-            eliminar_reservas_expiradas()
-        except Exception as e:
-            print(f"[warn] limpiar_reservas: {e}")
-        self.after(60000, self.limpiar_reservas_periodicamente)
+        def _worker():
+            try:
+                eliminar_reservas_expiradas()
+            except Exception as e:
+                print(f"[warn] limpiar_reservas: {e}")
+        threading.Thread(target=_worker, daemon=True).start()
+        self.after(60_000, self.limpiar_reservas_periodicamente)
 
     # ── Cierre y logout ───────────────────────────────────────────────────────
 
     def _cerrar_sesion(self):
+        import threading
         from models.logs_service import registrar_log
         usuario = SessionManager.get_usuario_actual()
         if usuario:
-            registrar_log("logout", username=usuario.nombre, usuario_id=usuario.id)
+            threading.Thread(
+                target=registrar_log,
+                args=("logout",),
+                kwargs={"username": usuario.nombre, "usuario_id": usuario.id},
+                daemon=True,
+            ).start()
         self._poller.detener()
         SessionManager.cerrar_sesion()
         self._volver_login()
