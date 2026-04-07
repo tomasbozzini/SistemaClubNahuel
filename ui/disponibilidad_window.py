@@ -346,7 +346,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
                     txt = cliente[:15] + "…" if len(cliente) > 15 else cliente
                     bg, fg = _BG_OCUPADO, _FG_OCUPADO
                 elif key in ocupacion_bloqueada:
-                    bg, fg, txt = _BG_OCUPADO, "#3A1A1A", "—"
+                    bg, fg, txt = "#1A0808", "#5A2020", "◼"
                 else:
                     bg, fg, txt = _BG_LIBRE, _FG_LIBRE, "LIBRE"
 

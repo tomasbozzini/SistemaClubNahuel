@@ -285,12 +285,12 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
                 self.tree.insert("", tk.END, values=display, tags=(tag,))
 
             if individuales:
-                _insertar_seccion("RESERVAS DEL DÍA", len(individuales))
+                _insertar_seccion("RESERVAS INDIVIDUALES", len(individuales))
                 for f in individuales:
                     _insertar_fila(f)
 
             if recurrentes:
-                _insertar_seccion("RESERVAS FIJAS", len(recurrentes))
+                _insertar_seccion("RESERVAS FIJAS  ↺", len(recurrentes))
                 for f in recurrentes:
                     _insertar_fila(f)
 

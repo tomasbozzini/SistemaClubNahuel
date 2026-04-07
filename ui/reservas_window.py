@@ -7,7 +7,7 @@ from datetime import datetime, date as date_type
 from auth.session import SessionManager
 from utils.validaciones import validar_horario, sanitizar_texto
 from models.canchas_service import listar_canchas_con_precio
-from models.reservas_service import insertar_reserva, insertar_reservas_recurrentes, verificar_slot
+from models.reservas_service import insertar_reserva, insertar_reservas_recurrentes, verificar_slot, listar_slots_disponibles
 
 
 _DURACION_LABEL = {"padel": "1 h 30 min", "futbol": "1 hora", "tenis": "1 hora"}
@@ -71,7 +71,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         self.title("Nueva Reserva")
         self.update_idletasks()
-        centrar_ventana(self, 520, 700)
+        centrar_ventana(self, 520, 780)
         self.resizable(False, False)
         self.transient(parent)
         self.configure(fg_color="#0D0D0D")
@@ -147,19 +147,42 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             weekendbackground="#1A1A1A", weekendforeground="#A3F843",
             font=("Arial", 11))
         self.date_entry.pack(anchor="w", ipady=6)
+        self.date_entry.bind("<<DateEntrySelected>>", lambda e: self._cargar_slots_async())
 
         col_hora = ctk.CTkFrame(fila, fg_color="transparent")
         col_hora.pack(side="left", expand=True, fill="x")
-        ctk.CTkLabel(col_hora, text="HORA  (HH:MM)", **lbl_kw).pack(anchor="w", pady=(0, 4))
-        self.entry_hora = ctk.CTkEntry(col_hora, placeholder_text="14:30",
+        ctk.CTkLabel(col_hora, text="HORARIO DISPONIBLE", **lbl_kw).pack(anchor="w", pady=(0, 4))
+        self.combo_hora = ctk.CTkComboBox(col_hora,
+            values=["— elegí cancha y fecha —"],
             height=40, fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", corner_radius=10)
-        self.entry_hora.pack(fill="x")
+            text_color="#FFFFFF", button_color="#252525", button_hover_color="#A3F843",
+            dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
+            corner_radius=10, state="readonly")
+        self.combo_hora.set("— elegí cancha y fecha —")
+        self.combo_hora.pack(fill="x")
 
         # Observaciones
         ctk.CTkLabel(card, text="OBSERVACIONES", **lbl_kw).pack(anchor="w", padx=28, pady=(16, 4))
         self.entry_obs = ctk.CTkEntry(card, placeholder_text="Opcional", **ent_kw)
         self.entry_obs.pack(padx=28)
+
+        # Estado de pago
+        ctk.CTkLabel(card, text="ESTADO DE PAGO", **lbl_kw).pack(anchor="w", padx=28, pady=(14, 4))
+        self._pago_seg = ctk.CTkSegmentedButton(
+            card,
+            values=["Pendiente", "Seña", "Pagado"],
+            width=432, height=36,
+            fg_color="#1A1A1A",
+            selected_color="#A3F843",
+            selected_hover_color="#C5FF6B",
+            unselected_color="#1A1A1A",
+            unselected_hover_color="#252525",
+            text_color="#FFFFFF",
+            font=("Arial", 11, "bold"),
+            corner_radius=10,
+        )
+        self._pago_seg.set("Pendiente")
+        self._pago_seg.pack(padx=28)
 
         # ── Recurrencia ───────────────────────────────────────────────────────
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
@@ -285,6 +308,46 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             self._hasta_frame.pack_forget()
             self.date_hasta.configure(state="disabled")
 
+    # ── Slots disponibles ─────────────────────────────────────────────────────
+
+    def _cargar_slots_async(self, *_):
+        """Carga horarios disponibles para la cancha y fecha seleccionadas."""
+        import threading
+        if not hasattr(self, "combo_hora") or not self.winfo_exists():
+            return
+        seleccion = self.combo_hora.get()  # evitar recarga si está cargando
+        # Obtener cancha_id
+        combo_val = self.combo_cancha.get()
+        cancha_id = next((r[0] for r in self.canchas if f"{r[1]} ({r[2]})" == combo_val), None)
+        if not cancha_id:
+            return
+        try:
+            fecha = self.date_entry.get_date().isoformat()
+        except Exception:
+            return
+
+        self.combo_hora.configure(values=["Cargando..."], state="disabled")
+        self.combo_hora.set("Cargando...")
+
+        def _worker():
+            try:
+                slots = listar_slots_disponibles(cancha_id, fecha)
+                self.after(0, lambda: self._poblar_slots(slots))
+            except Exception:
+                self.after(0, lambda: self._poblar_slots([]))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _poblar_slots(self, slots):
+        if not self.winfo_exists():
+            return
+        if slots:
+            self.combo_hora.configure(values=slots, state="readonly")
+            self.combo_hora.set(slots[0])
+        else:
+            self.combo_hora.configure(values=["Sin horarios disponibles"], state="readonly")
+            self.combo_hora.set("Sin horarios disponibles")
+
     # ── Hint cancha ───────────────────────────────────────────────────────────
 
     def _actualizar_hint(self, *_):
@@ -303,6 +366,8 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         else:
             texto = f"Duración:  {duracion}   ·   Precio:  sin definir"
         self.lbl_hint.configure(text=texto, text_color=color)
+        # Recargar slots al cambiar la cancha
+        self._cargar_slots_async()
 
     # ── Guardar ───────────────────────────────────────────────────────────────
 
@@ -314,8 +379,10 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         celular   = sanitizar_texto(self.entry_celular.get(), max_largo=30)
         seleccion = self.combo_cancha.get()
         fecha     = self.date_entry.get_date().isoformat()
-        hora      = self.entry_hora.get().strip()
+        hora      = self.combo_hora.get().strip()
         obs       = sanitizar_texto(self.entry_obs.get(), max_largo=300)
+        pago_map  = {"Pendiente": "pendiente", "Seña": "seña", "Pagado": "pagado"}
+        estado_pago = pago_map.get(self._pago_seg.get(), "pendiente")
 
         if not cliente:
             messagebox.showerror("Error", "Ingresá el nombre del cliente.")
@@ -326,11 +393,9 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         if not seleccion:
             messagebox.showerror("Error", "Seleccioná una cancha.")
             return
-        if not hora:
-            messagebox.showwarning("Error", "Ingresá un horario.")
-            return
-        if not validar_horario(hora):
-            messagebox.showerror("Error", "Formato de hora inválido. Use HH:MM (ej: 14:30).")
+        if not hora or not validar_horario(hora):
+            messagebox.showerror("Error",
+                "Seleccioná un horario disponible de la lista.")
             return
 
         try:
@@ -365,7 +430,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             try:
                 if es_recurrente:
                     exitosas, conflictos, fechas_conf = insertar_reservas_recurrentes(
-                        cliente, cancha_id, fecha, hora, obs, celular, fecha_hasta
+                        cliente, cancha_id, fecha, hora, obs, celular, fecha_hasta, estado_pago
                     )
                     self.after(0, lambda: self._on_guardado_recurrente(exitosas, conflictos, fechas_conf))
                 else:
@@ -373,7 +438,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
                     if error:
                         self.after(0, lambda: self._on_slot_error(error))
                         return
-                    rid = insertar_reserva(cliente, cancha_id, fecha, hora, obs, celular)
+                    rid = insertar_reserva(cliente, cancha_id, fecha, hora, obs, celular, estado_pago)
                     self.after(0, lambda: self._on_guardado_ok(rid))
             except Exception as e:
                 self.after(0, lambda: self._on_guardar_error(str(e)))

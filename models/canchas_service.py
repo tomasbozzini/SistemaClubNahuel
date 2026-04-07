@@ -31,11 +31,11 @@ def listar_canchas_con_precio() -> list[tuple]:
         return [(c.id, c.nombre, c.tipo, c.precio, c.duracion_minutos) for c in canchas]
 
 
-def insertar_cancha(nombre: str, tipo: str, duracion_minutos: int = None):
+def insertar_cancha(nombre: str, tipo: str, duracion_minutos: int = None, precio: float = 0.0):
     tipo_norm = tipo.lower().replace("á", "a").replace("ú", "u")
     duracion  = duracion_minutos if duracion_minutos else _duracion_por_tipo(tipo_norm)
     with get_connection() as session:
-        session.add(Cancha(nombre=nombre, tipo=tipo_norm, duracion_minutos=duracion))
+        session.add(Cancha(nombre=nombre, tipo=tipo_norm, duracion_minutos=duracion, precio=precio or 0.0))
         session.commit()
 
 
