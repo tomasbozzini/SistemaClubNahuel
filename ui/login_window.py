@@ -56,7 +56,7 @@ class LoginWindow(ctk.CTk):
             corner_radius=10, height=40, width=160,
         )
 
-        ctk.CTkLabel(self, text="v 1.3.5",
+        ctk.CTkLabel(self, text="v 1.3.7",
             font=("Arial", 9), text_color="#2A2A2A").place(relx=0.5, rely=0.93, anchor="center")
 
     def _verificar_conexion(self):
@@ -105,7 +105,7 @@ class LoginWindow(ctk.CTk):
         ctk.CTkLabel(brand, text="S I S T E M A  D E  R E S E R V A S",
             font=("Arial", 8, "bold"), text_color="#1E1E1E").pack()
 
-        ctk.CTkLabel(left, text="v 1.3.5",
+        ctk.CTkLabel(left, text="v 1.3.7",
             font=("Arial", 9), text_color="#2C2C1A").place(relx=0.5, rely=0.93, anchor="center")
 
         # Panel derecho — formulario
@@ -166,16 +166,27 @@ class LoginWindow(ctk.CTk):
             return
 
         self.btn_login.configure(state="disabled", text="Verificando...")
-        self.update()
+        self._mostrar_error("")
 
-        try:
-            usuario = verificar_login(email, password)
-        except ValueError as e:
-            self._mostrar_error(str(e))
-            self.btn_login.configure(state="normal", text="INGRESAR  →")
+        def _worker():
+            try:
+                usuario = verificar_login(email, password)
+                self.after(0, lambda: self._on_login_result(usuario, None))
+            except ValueError as e:
+                self.after(0, lambda: self._on_login_result(None, str(e)))
+            except Exception as e:
+                self.after(0, lambda: self._on_login_result(None, f"Error de conexión: {e}"))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _on_login_result(self, usuario, error):
+        if not self.winfo_exists():
             return
-
         self.btn_login.configure(state="normal", text="INGRESAR  →")
+
+        if error:
+            self._mostrar_error(error)
+            return
 
         if usuario is None:
             self._mostrar_error("Usuario o contraseña incorrectos.")

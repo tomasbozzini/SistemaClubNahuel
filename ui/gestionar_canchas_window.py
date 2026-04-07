@@ -6,7 +6,7 @@ from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.canchas_service import (
     listar_canchas_con_precio, insertar_cancha, eliminar_cancha,
-    existe_cancha, actualizar_duracion_cancha,
+    existe_cancha, actualizar_duracion_cancha, actualizar_precio_cancha,
 )
 from models.bloqueos_service import (
     listar_bloqueos_futuros, insertar_bloqueo, eliminar_bloqueo,
@@ -109,6 +109,14 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.combo_tipo.set("Pádel")
         self.combo_tipo.pack(fill="x")
 
+        col_precio = ctk.CTkFrame(fila, fg_color="transparent")
+        col_precio.pack(side="left", expand=False, fill="x", padx=(0, 10))
+        ctk.CTkLabel(col_precio, text="PRECIO ($)", **lbl_kw).pack(anchor="w", pady=(0, 4))
+        self.entry_precio = ctk.CTkEntry(col_precio, placeholder_text="Ej: 5000",
+            fg_color="#1A1A1A", border_color="#252525", border_width=1,
+            text_color="#FFFFFF", corner_radius=10, height=40, width=100)
+        self.entry_precio.pack(fill="x")
+
         col_dur = ctk.CTkFrame(fila, fg_color="transparent")
         col_dur.pack(side="left", expand=False, fill="x", padx=(0, 10))
         ctk.CTkLabel(col_dur, text="DURACIÓN (min)", **lbl_kw).pack(anchor="w", pady=(0, 4))
@@ -129,7 +137,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         edit_row.pack(padx=16, pady=10, fill="x")
 
         self._lbl_sel = ctk.CTkLabel(edit_row,
-            text="Seleccioná una cancha para editar su duración",
+            text="Seleccioná una cancha para editar su duración o precio",
             font=("Arial", 10), text_color="#333333", anchor="w")
         self._lbl_sel.pack(side="left", expand=True, fill="x")
 
@@ -145,7 +153,23 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             corner_radius=10, width=180, height=36,
             font=("Arial", 11, "bold"), state="disabled",
         )
-        self._btn_actualizar.pack(side="left")
+        self._btn_actualizar.pack(side="left", padx=(0, 16))
+
+        ctk.CTkLabel(edit_row, text="PRECIO ($)",
+            font=("Arial", 10, "bold"), text_color="#555555").pack(side="left", padx=(0, 6))
+        self._entry_precio_edit = ctk.CTkEntry(edit_row, placeholder_text="0",
+            fg_color="#1A1A1A", border_color="#252525", border_width=1,
+            text_color="#FFFFFF", corner_radius=10, height=36, width=90)
+        self._entry_precio_edit.pack(side="left", padx=(0, 8))
+
+        self._btn_actualizar_precio = ctk.CTkButton(edit_row, text="ACTUALIZAR PRECIO",
+            command=self._actualizar_precio,
+            fg_color="transparent", hover_color="#001A1A",
+            text_color="#00C4FF", border_color="#002A2A", border_width=1,
+            corner_radius=10, width=170, height=36,
+            font=("Arial", 11, "bold"), state="disabled",
+        )
+        self._btn_actualizar_precio.pack(side="left")
 
         # Lista de canchas
         list_card = ctk.CTkFrame(tab, fg_color="#0F0F0F", corner_radius=10)
@@ -158,10 +182,10 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         tree_frame = ctk.CTkFrame(list_card, fg_color="transparent")
         tree_frame.pack(fill="both", expand=True, padx=10)
 
-        cols = ("ID", "Nombre", "Tipo", "Duración (min)")
+        cols = ("ID", "Nombre", "Tipo", "Duración (min)", "Precio ($)")
         self.tree = ttk.Treeview(tree_frame, columns=cols, show="headings",
             style="Club.Treeview", height=6)
-        widths = {"ID": 50, "Nombre": 300, "Tipo": 160, "Duración (min)": 120}
+        widths = {"ID": 50, "Nombre": 240, "Tipo": 140, "Duración (min)": 110, "Precio ($)": 100}
         for c in cols:
             self.tree.heading(c, text=c)
             self.tree.column(c, width=widths.get(c, 100), anchor="center")
@@ -320,15 +344,23 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if not sel:
             self._cancha_sel_id = None
             self._lbl_sel.configure(
-                text="Seleccioná una cancha para editar su duración",
+                text="Seleccioná una cancha para editar su duración o precio",
                 text_color="#333333")
             self._btn_actualizar.configure(state="disabled")
+            self._btn_actualizar_precio.configure(state="disabled")
             return
         v = self.tree.item(sel[0], "values")
         self._cancha_sel_id = int(v[0])
         self._lbl_sel.configure(text=f"Cancha seleccionada:  {v[1]}", text_color="#FFFFFF")
         self._combo_dur_edit.set(str(v[3]))
+        # Cargar precio actual en el entry de edición
+        cancha_data = next((c for c in self._canchas_cache if c[0] == self._cancha_sel_id), None)
+        if cancha_data is not None:
+            precio_actual = cancha_data[3] or 0
+            self._entry_precio_edit.delete(0, "end")
+            self._entry_precio_edit.insert(0, str(int(precio_actual)))
         self._btn_actualizar.configure(state="normal")
+        self._btn_actualizar_precio.configure(state="normal")
 
     def _actualizar_duracion(self):
         if not self._cancha_sel_id:
@@ -343,6 +375,21 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         messagebox.showinfo("Listo",
             f"Duración actualizada a {dur} minutos.")
 
+    def _actualizar_precio(self):
+        if not self._cancha_sel_id:
+            return
+        try:
+            precio = float(self._entry_precio_edit.get().replace(",", ".") or "0")
+            if precio < 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning("Error", "Precio inválido. Ingresá un número positivo.")
+            return
+        actualizar_precio_cancha(self._cancha_sel_id, precio)
+        self.cargar_canchas()
+        precio_fmt = f"${int(precio):,}".replace(",", ".")
+        messagebox.showinfo("Listo", f"Precio actualizado a {precio_fmt}.")
+
     def cargar_canchas(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -352,10 +399,19 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if opciones:
             self.combo_bloqueo_cancha.set(opciones[0])
         for fila in self._canchas_cache:
-            cid, nombre, tipo, _, duracion = fila
+            cid, nombre, tipo, precio, duracion = fila
             tipo_raw = tipo.lower().replace("á", "a").replace("ú", "u")
             tag = tipo_raw if tipo_raw in ("padel", "futbol", "tenis") else ""
-            self.tree.insert("", "end", values=(cid, nombre, tipo.capitalize(), duracion), tags=(tag,))
+            precio_str = f"${int(precio):,}".replace(",", ".") if precio else "—"
+            self.tree.insert("", "end",
+                values=(cid, nombre, tipo.capitalize(), duracion, precio_str), tags=(tag,))
+        # Resetear selección
+        self._cancha_sel_id = None
+        self._lbl_sel.configure(
+            text="Seleccioná una cancha para editar su duración o precio",
+            text_color="#333333")
+        self._btn_actualizar.configure(state="disabled")
+        self._btn_actualizar_precio.configure(state="disabled")
 
     def agregar_cancha(self):
         nombre = sanitizar_texto(self.entry_nombre.get(), max_largo=100)
@@ -364,6 +420,14 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             duracion = int(self.combo_dur.get())
         except ValueError:
             messagebox.showwarning("Error", "Duración inválida.")
+            return
+        try:
+            precio_raw = self.entry_precio.get().replace(",", ".").strip()
+            precio = float(precio_raw) if precio_raw else 0.0
+            if precio < 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning("Error", "Precio inválido.")
             return
         if not nombre or not tipo:
             messagebox.showwarning("Error", "Completá todos los campos.")
@@ -374,8 +438,9 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if existe_cancha(nombre):
             messagebox.showerror("Error", "Ya existe una cancha con ese nombre.")
             return
-        insertar_cancha(nombre, tipo, duracion)
+        insertar_cancha(nombre, tipo, duracion, precio)
         self.entry_nombre.delete(0, "end")
+        self.entry_precio.delete(0, "end")
         self.cargar_canchas()
 
     def eliminar_cancha(self):
@@ -387,11 +452,6 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         cancha_id, nombre = cancha[0], cancha[1]
         if messagebox.askyesno("Confirmar", f"¿Eliminar la cancha '{nombre}'?"):
             eliminar_cancha(cancha_id)
-            self._cancha_sel_id = None
-            self._btn_actualizar.configure(state="disabled")
-            self._lbl_sel.configure(
-                text="Seleccioná una cancha para editar su duración",
-                text_color="#333333")
             self.cargar_canchas()
             self._cargar_bloqueos()
 

@@ -10,6 +10,18 @@ from models.cancha import Cancha
 from models.reserva import Reserva
 
 
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _t_mins(t: time) -> int:
+    """
+    Convierte un time a minutos desde medianoche.
+    time(0, 0) se trata como 1440 (= 24 * 60) para representar el cierre del día,
+    lo que evita el problema de que '00:00' < '22:00' en comparación directa.
+    """
+    v = t.hour * 60 + t.minute
+    return 1440 if v == 0 else v
+
+
 # ── Duración ──────────────────────────────────────────────────────────────────
 
 def _duracion_cancha(cancha: Cancha) -> timedelta:
@@ -169,11 +181,15 @@ def insertar_reserva(
     hora: str,
     observaciones: str = "",
     telefono: str = "",
+    estado_pago: str = "pendiente",
 ) -> int:
     """Inserta una reserva. Retorna el ID creado."""
     hora_inicio = datetime.strptime(hora, "%H:%M").time()
     usuario     = SessionManager.get_usuario_actual()
     creado_por  = usuario.id if usuario else None
+    _PAGOS_VALIDOS = {"pendiente", "seña", "pagado"}
+    if estado_pago not in _PAGOS_VALIDOS:
+        estado_pago = "pendiente"
 
     with get_connection() as session:
         cancha   = session.query(Cancha).filter_by(id=cancha_id).first()
@@ -190,7 +206,7 @@ def insertar_reserva(
             telefono_cliente=telefono or None,
             notas=observaciones,
             estado="confirmada",
-            estado_pago="pendiente",
+            estado_pago=estado_pago,
             precio_total=precio,
             creado_por=creado_por,
         )
@@ -207,6 +223,7 @@ def insertar_reservas_recurrentes(
     observaciones: str,
     telefono: str,
     fecha_hasta_str: str,
+    estado_pago: str = "pendiente",
 ) -> tuple[int, int, list[str]]:
     """
     Inserta reservas semanales (mismo día de semana) desde fecha_inicio hasta fecha_hasta.
@@ -228,6 +245,9 @@ def insertar_reservas_recurrentes(
         fechas.append(f)
         f += timedelta(weeks=1)
 
+    _PAGOS_VALIDOS = {"pendiente", "seña", "pagado"}
+    if estado_pago not in _PAGOS_VALIDOS:
+        estado_pago = "pendiente"
     exitosas         = 0
     conflictos       = 0
     fechas_conflicto = []
@@ -239,24 +259,27 @@ def insertar_reservas_recurrentes(
         hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
         precio   = (cancha.precio or 0.0) if cancha else 0.0
 
+        ini_mins = _t_mins(hora_inicio)
+        fin_mins = _t_mins(hora_fin)
+
         for f in fechas:
             if cancha_bloqueada(cancha_id, f):
                 conflictos += 1
                 fechas_conflicto.append(str(f))
                 continue
 
-            conflicto = (
+            reservas_dia = (
                 session.query(Reserva)
                 .filter(
-                    and_(
-                        Reserva.cancha_id == cancha_id,
-                        Reserva.fecha == f,
-                        Reserva.estado != "completada",
-                        Reserva.hora_inicio < hora_fin,
-                        Reserva.hora_fin > hora_inicio,
-                    )
+                    Reserva.cancha_id == cancha_id,
+                    Reserva.fecha == f,
+                    Reserva.estado != "completada",
                 )
-                .first()
+                .all()
+            )
+            conflicto = any(
+                ini_mins < _t_mins(r.hora_fin) and fin_mins > _t_mins(r.hora_inicio)
+                for r in reservas_dia
             )
             if conflicto:
                 conflictos += 1
@@ -272,7 +295,7 @@ def insertar_reservas_recurrentes(
                 telefono_cliente=telefono or None,
                 notas=observaciones,
                 estado="confirmada",
-                estado_pago="pendiente",
+                estado_pago=estado_pago,
                 precio_total=precio,
                 grupo_recurrente_id=grupo_id,
                 creado_por=creado_por,
@@ -333,7 +356,10 @@ def verificar_slot(cancha_id: int, fecha: str, hora: str) -> str | None:
 # ── Overlap ───────────────────────────────────────────────────────────────────
 
 def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
-    """Verifica superposición con reservas activas (excluye completadas)."""
+    """
+    Verifica superposición con reservas activas (excluye completadas).
+    Usa comparación en minutos para manejar correctamente slots que terminan a las 00:00.
+    """
     try:
         hora_inicio = datetime.strptime(hora, "%H:%M").time()
     except ValueError:
@@ -346,20 +372,79 @@ def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
         duracion = _duracion_cancha(cancha)
         hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
 
-        conflicto = (
+        reservas = (
             session.query(Reserva)
             .filter(
-                and_(
-                    Reserva.cancha_id == cancha_id,
-                    Reserva.fecha == fecha_date,
-                    Reserva.estado != "completada",
-                    Reserva.hora_inicio < hora_fin,
-                    Reserva.hora_fin > hora_inicio,
-                )
+                Reserva.cancha_id == cancha_id,
+                Reserva.fecha == fecha_date,
+                Reserva.estado != "completada",
             )
-            .first()
+            .all()
         )
-    return conflicto is not None
+
+    ini = _t_mins(hora_inicio)
+    fin = _t_mins(hora_fin)
+    return any(ini < _t_mins(r.hora_fin) and fin > _t_mins(r.hora_inicio) for r in reservas)
+
+
+# ── Slots disponibles ────────────────────────────────────────────────────────
+
+def listar_slots_disponibles(cancha_id: int, fecha: str) -> list[str]:
+    """
+    Retorna lista de horarios HH:MM disponibles para reservar.
+    Genera candidatos cada 30 min desde 08:00 hasta que slot+duración <= 23:00.
+    Descarta: cancha bloqueada, superposición parcial o total con reservas activas,
+    horarios ya pasados (si la fecha es hoy).
+    """
+    from models.bloqueos_service import cancha_bloqueada
+
+    fecha_date = datetime.strptime(fecha, "%Y-%m-%d").date() if isinstance(fecha, str) else fecha
+
+    if cancha_bloqueada(cancha_id, fecha_date):
+        return []
+
+    with get_connection() as session:
+        cancha = session.query(Cancha).filter_by(id=cancha_id).first()
+        if not cancha:
+            return []
+        duracion = _duracion_cancha(cancha)
+
+        reservas_dia = (
+            session.query(Reserva)
+            .filter(
+                Reserva.cancha_id == cancha_id,
+                Reserva.fecha == fecha_date,
+                Reserva.estado != "completada",
+            )
+            .all()
+        )
+        ocupados = [(r.hora_inicio, r.hora_fin) for r in reservas_dia]
+
+    # Cierre = medianoche: permite slots que terminan hasta las 00:00
+    cierre_dt = datetime.combine(fecha_date, time(0, 0)) + timedelta(days=1)
+    ahora = datetime.now()
+
+    # Convertir ocupados a minutos para comparación robusta (00:00 = 1440)
+    ocupados_mins = [(_t_mins(ini), _t_mins(fin)) for ini, fin in ocupados]
+
+    disponibles = []
+    slot_dt = datetime.combine(fecha_date, time(8, 0))
+
+    while True:
+        slot_fin_dt = slot_dt + duracion
+        if slot_fin_dt > cierre_dt:
+            break
+        if slot_dt > ahora:
+            s_min   = slot_dt.hour * 60 + slot_dt.minute
+            s_fin_min = slot_fin_dt.hour * 60 + slot_fin_dt.minute
+            if s_fin_min == 0:
+                s_fin_min = 1440  # 00:00 = medianoche = 24*60
+            overlap = any(s_min < fin and s_fin_min > ini for ini, fin in ocupados_mins)
+            if not overlap:
+                disponibles.append(slot_dt.strftime("%H:%M"))
+        slot_dt += timedelta(minutes=30)
+
+    return disponibles
 
 
 # ── Limpieza periódica ────────────────────────────────────────────────────────
