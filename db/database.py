@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
 
 # ---------------------------------------------------------------------------
 # Config
@@ -25,7 +26,7 @@ _url = (
 engine = create_engine(
     _url,
     connect_args={"sslmode": "require"},
-    pool_pre_ping=True,
+    poolclass=NullPool,
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
