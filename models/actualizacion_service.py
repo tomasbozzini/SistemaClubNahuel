@@ -1,5 +1,5 @@
 # models/actualizacion_service.py
-APP_VERSION = "1.3.7"
+APP_VERSION = "1.3.10"
 
 
 def verificar_actualizacion():
