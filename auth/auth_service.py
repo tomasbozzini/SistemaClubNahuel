@@ -20,7 +20,17 @@ def _cargar_intentos() -> dict:
     try:
         if _ATTEMPTS_FILE.exists():
             with open(_ATTEMPTS_FILE, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+            # Estructura inválida — resetear
+            _ATTEMPTS_FILE.unlink(missing_ok=True)
+    except json.JSONDecodeError:
+        # Archivo corrupto — borrarlo para no bloquear logins legítimos
+        try:
+            _ATTEMPTS_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
     except Exception:
         pass
     return {}

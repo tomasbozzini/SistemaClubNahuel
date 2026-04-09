@@ -19,9 +19,8 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
       on_error(excepcion)
     """
     def _worker():
+        dest = os.path.join(tempfile.gettempdir(), "_main_update.exe")
         try:
-            dest = os.path.join(tempfile.gettempdir(), "_main_update.exe")
-
             req   = urllib.request.urlopen(url, timeout=120)
             total = int(req.headers.get("Content-Length", 0))
             descargado = 0
@@ -42,6 +41,11 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
                     f"Descarga incompleta: {descargado} de {total} bytes."
                 )
 
+            # Verificar que sea un ejecutable válido (header MZ)
+            with open(dest, "rb") as f:
+                if f.read(2) != b"MZ":
+                    raise IOError("El archivo descargado no es un ejecutable válido.")
+
             # Desbloquear el archivo (Windows lo marca como descargado de internet)
             try:
                 subprocess.run(
@@ -55,6 +59,12 @@ def descargar_actualizacion(url: str, on_progress=None, on_done=None, on_error=N
             if on_done:
                 on_done(dest)
         except Exception as exc:
+            # Limpiar archivo parcial/corrupto para no dejar basura en disco
+            try:
+                if os.path.exists(dest):
+                    os.unlink(dest)
+            except Exception:
+                pass
             if on_error:
                 on_error(exc)
 
@@ -72,9 +82,12 @@ def aplicar_actualizacion(ruta_nueva: str):
 
     vbs = (
         'WScript.Sleep 8000\n'
+        'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+        f'If Not fso.FileExists("{ruta_nueva}") Then WScript.Quit 1\n'
         'Set sh = WScript.CreateObject("WScript.Shell")\n'
-        f'sh.Run "cmd /c move /y ""{ruta_nueva}"" ""{exe_actual}""", 0, True\n'
-        'WScript.Quit\n'
+        f'ret = sh.Run("cmd /c move /y ""{ruta_nueva}"" ""{exe_actual}""", 0, True)\n'
+        'If ret <> 0 Then WScript.Quit ret\n'
+        'WScript.Quit 0\n'
     )
     with open(vbs_path, "w") as f:
         f.write(vbs)

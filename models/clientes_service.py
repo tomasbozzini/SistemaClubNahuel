@@ -12,10 +12,12 @@ def listar_clientes() -> list[tuple]:
 
 def buscar_clientes(texto: str) -> list[tuple]:
     """Retorna hasta 8 clientes cuyo nombre contenga el texto (case-insensitive)."""
+    if not texto or not texto.strip():
+        return []
     with get_connection() as session:
         clientes = (
             session.query(Cliente)
-            .filter(Cliente.nombre.ilike(f"%{texto}%"))
+            .filter(Cliente.nombre.ilike(f"%{texto.strip()}%"))
             .order_by(Cliente.nombre)
             .limit(8)
             .all()

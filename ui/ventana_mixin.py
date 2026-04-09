@@ -71,6 +71,7 @@ class InactividadMixin:
     def _iniciar_monitor_inactividad(self):
         self._t_ultimo_evento = time.monotonic()
         self._aviso_inactividad = None
+        self._tick_id = None
         self.bind_all("<Motion>", self._resetear_inactividad, add="+")
         self.bind_all("<Key>",    self._resetear_inactividad, add="+")
         self.bind_all("<Button>", self._resetear_inactividad, add="+")
@@ -95,7 +96,13 @@ class InactividadMixin:
                 if not self._aviso_inactividad or not self._aviso_inactividad.winfo_exists():
                     self._aviso_inactividad = _AvisoInactividadDialog(self, int(restante))
 
-            self.after(_TICK_MS, self._tick_inactividad)
+            # Cancelar tick anterior antes de programar el siguiente
+            if self._tick_id:
+                try:
+                    self.after_cancel(self._tick_id)
+                except Exception:
+                    pass
+            self._tick_id = self.after(_TICK_MS, self._tick_inactividad)
         except Exception:
             pass
 

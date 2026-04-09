@@ -13,7 +13,20 @@ _cfg = configparser.ConfigParser()
 _cfg_path = os.path.join(os.path.dirname(__file__), "..", "config.ini")
 _cfg.read(_cfg_path, encoding="utf-8")
 
+if not _cfg.has_section("database"):
+    raise EnvironmentError(
+        f"No se encontró la sección [database] en config.ini ({_cfg_path}). "
+        "Verificá que el archivo exista y tenga el formato correcto."
+    )
+
 _db = _cfg["database"]
+_CAMPOS_REQUERIDOS = ["host", "user", "password", "port", "dbname"]
+_faltantes = [c for c in _CAMPOS_REQUERIDOS if c not in _db]
+if _faltantes:
+    raise EnvironmentError(
+        f"config.ini: faltan campos requeridos en [database]: {', '.join(_faltantes)}"
+    )
+
 _url = (
     f"postgresql+psycopg2://{_db['user']}:{_db['password']}"
     f"@{_db['host']}:{_db['port']}/{_db['dbname']}"
