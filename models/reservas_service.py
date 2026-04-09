@@ -453,6 +453,7 @@ def eliminar_reservas_expiradas():
     """
     Marca como 'completada' las reservas cuyo hora_fin ya pasó.
     No las elimina — quedan en el historial financiero.
+    hora_fin == time(0,0) representa medianoche del día siguiente (fin de turno 23:00–00:00).
     """
     ahora = datetime.now()
     with get_connection() as session:
@@ -465,6 +466,9 @@ def eliminar_reservas_expiradas():
         actualizadas = 0
         for r, c in filas:
             fin_dt = datetime.combine(r.fecha, r.hora_fin)
+            # hora_fin 00:00 significa medianoche del día siguiente, no el inicio del mismo día
+            if r.hora_fin == time(0, 0):
+                fin_dt += timedelta(days=1)
             if ahora >= fin_dt:
                 r.estado = "completada"
                 if not r.precio_total:

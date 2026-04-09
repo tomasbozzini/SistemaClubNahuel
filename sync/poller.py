@@ -49,7 +49,7 @@ class ReservasPoller:
     INTERVALO_ERROR  = 60   # segundos entre reintentos tras error
 
     def __init__(self):
-        self.cola: queue.Queue = queue.Queue()
+        self.cola: queue.Queue = queue.Queue(maxsize=200)
         self._stop_event   = threading.Event()
         self._forzar_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -71,9 +71,11 @@ class ReservasPoller:
         self._thread.start()
 
     def detener(self):
-        """Señala al hilo que pare. No bloquea."""
+        """Señala al hilo que pare y espera a que termine (máx 3s)."""
         self._stop_event.set()
         self._forzar_event.set()   # desbloquear wait si está dormido
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=3)
 
     def forzar_actualizacion(self):
         """Dispara una consulta inmediata (ej: después de crear una reserva)."""
@@ -112,19 +114,28 @@ class ReservasPoller:
 
             if self._con_error:
                 self._con_error = False
-                self.cola.put(EventoReconexion(timestamp=ahora))
+                try:
+                    self.cola.put_nowait(EventoReconexion(timestamp=ahora))
+                except queue.Full:
+                    pass
 
-            self.cola.put(EventoActualizacion(
-                reservas=reservas_serializadas,
-                timestamp=ahora,
-            ))
+            try:
+                self.cola.put_nowait(EventoActualizacion(
+                    reservas=reservas_serializadas,
+                    timestamp=ahora,
+                ))
+            except queue.Full:
+                pass
 
         except Exception as exc:
             self._con_error = True
-            self.cola.put(EventoError(
-                mensaje=str(exc),
-                timestamp=datetime.now(),
-            ))
+            try:
+                self.cola.put_nowait(EventoError(
+                    mensaje=str(exc),
+                    timestamp=datetime.now(),
+                ))
+            except queue.Full:
+                pass
 
 
 def _serializar(r: Reserva) -> dict:
