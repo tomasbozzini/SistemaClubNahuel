@@ -397,30 +397,30 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
 
     def _mostrar_banner_update(self, version, url):
         try:
-            banner = ctk.CTkFrame(self, fg_color="#1A1200", corner_radius=0,
-                                  border_width=1, border_color="#3A2800")
+            banner = ctk.CTkFrame(self, fg_color="#2A1F00", corner_radius=0,
+                                  border_width=2, border_color="#FFD700")
             banner.pack(fill="x", before=self._sync_bar_ref)
 
             ctk.CTkLabel(
                 banner,
-                text=f"  Nueva versión disponible: v{version}",
-                font=("Arial", 11), text_color="#FFD700"
-            ).pack(side="left", padx=(12, 4), pady=6)
+                text=f"  🔔  Nueva versión disponible: v{version}",
+                font=("Arial", 13, "bold"), text_color="#FFD700"
+            ).pack(side="left", padx=(16, 8), pady=10)
 
             btn_update = ctk.CTkButton(
                 banner, text="Actualizar ahora",
                 command=lambda: self._iniciar_descarga_update(url, banner),
-                fg_color="#3A2800", hover_color="#5A4000",
-                text_color="#FFD700", border_color="#5A4000", border_width=1,
-                corner_radius=6, width=160, height=26, font=("Arial", 10, "bold")
+                fg_color="#FFD700", hover_color="#FFC000",
+                text_color="#1A1200", border_width=0,
+                corner_radius=6, width=160, height=30, font=("Arial", 11, "bold")
             )
-            btn_update.pack(side="left", padx=4, pady=6)
+            btn_update.pack(side="left", padx=8, pady=10)
 
             ctk.CTkButton(
                 banner, text="✕", command=banner.destroy,
-                fg_color="transparent", hover_color="#2A1800",
-                text_color="#664400", width=28, height=26, font=("Arial", 11)
-            ).pack(side="right", padx=8, pady=6)
+                fg_color="transparent", hover_color="#3A2800",
+                text_color="#FFD700", width=32, height=30, font=("Arial", 13, "bold")
+            ).pack(side="right", padx=12, pady=10)
         except Exception:
             pass
 
