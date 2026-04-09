@@ -30,6 +30,7 @@ _CELL_H      = 34   # alto de cada celda
 
 
 def _slots() -> list[str]:
+    """Genera slots de 30 min desde 08:00 hasta 23:30 (último slot completo antes de medianoche)."""
     result, h, m = [], _HORA_INICIO, 0
     while h < _HORA_FIN:
         result.append(f"{h:02d}:{m:02d}")
@@ -37,7 +38,8 @@ def _slots() -> list[str]:
         if m >= 60:
             m -= 60
             h += 1
-    result.append("00:00")
+    # No se agrega "00:00": ninguna reserva empieza a medianoche y
+    # mostrarlo como "LIBRE" era engañoso (siempre aparecía disponible).
     return result
 
 

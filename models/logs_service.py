@@ -39,5 +39,5 @@ def registrar_log(
             )
             session.add(log)
             session.commit()
-    except Exception as e:
-        print(f"[warn] logs_service: no se pudo registrar log '{accion}': {e}")
+    except Exception:
+        pass  # Fallo silencioso — el log no debe interrumpir el flujo principal

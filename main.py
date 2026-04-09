@@ -10,8 +10,8 @@ if __name__ == "__main__":
             try:
                 from db.migracion_v2 import migrar
                 migrar()
-            except Exception as e:
-                print(f"[migrar] {e}")
+            except Exception:
+                pass  # Fallo silencioso — la migración no es bloqueante
 
         threading.Thread(target=_migrar_bg, daemon=True).start()
 
