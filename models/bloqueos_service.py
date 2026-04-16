@@ -2,6 +2,7 @@
 from datetime import date as date_type, datetime
 from auth.session import SessionManager
 from db.database import get_connection
+import models.club    # noqa: F401 — necesario para que SQLAlchemy resuelva la FK bloqueos_cancha.club_id → clubs.id
 from models.bloqueo_cancha import BloqueoCancha
 from models.cancha import Cancha
 

@@ -86,87 +86,100 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
             dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
             corner_radius=10, height=40)
 
-        # Formulario agregar
+        solo_admin = SessionManager.es_admin()
+
+        # Formulario agregar — solo visible para supervisor/superadmin
         form = ctk.CTkFrame(tab, fg_color="#141414", corner_radius=10)
         form.pack(fill="x", padx=8, pady=(8, 4))
 
-        fila = ctk.CTkFrame(form, fg_color="transparent")
-        fila.pack(padx=16, pady=14, fill="x")
+        if solo_admin:
+            ctk.CTkLabel(form,
+                text="Solo el supervisor puede agregar canchas nuevas.",
+                font=("Arial", 11), text_color="#555555",
+            ).pack(padx=16, pady=14)
+        else:
+            fila = ctk.CTkFrame(form, fg_color="transparent")
+            fila.pack(padx=16, pady=14, fill="x")
 
-        col_nombre = ctk.CTkFrame(fila, fg_color="transparent")
-        col_nombre.pack(side="left", expand=True, fill="x", padx=(0, 10))
-        ctk.CTkLabel(col_nombre, text="NOMBRE", **lbl_kw).pack(anchor="w", pady=(0, 4))
-        self.entry_nombre = ctk.CTkEntry(col_nombre, placeholder_text="Ej: Pádel 3",
-            fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", corner_radius=10, height=40)
-        self.entry_nombre.pack(fill="x")
+            col_nombre = ctk.CTkFrame(fila, fg_color="transparent")
+            col_nombre.pack(side="left", expand=True, fill="x", padx=(0, 10))
+            ctk.CTkLabel(col_nombre, text="NOMBRE", **lbl_kw).pack(anchor="w", pady=(0, 4))
+            self.entry_nombre = ctk.CTkEntry(col_nombre, placeholder_text="Ej: Pádel 3",
+                fg_color="#1A1A1A", border_color="#252525", border_width=1,
+                text_color="#FFFFFF", corner_radius=10, height=40)
+            self.entry_nombre.pack(fill="x")
 
-        col_tipo = ctk.CTkFrame(fila, fg_color="transparent")
-        col_tipo.pack(side="left", expand=False, fill="x", padx=(0, 10))
-        ctk.CTkLabel(col_tipo, text="TIPO", **lbl_kw).pack(anchor="w", pady=(0, 4))
-        self.combo_tipo = ctk.CTkComboBox(col_tipo, values=["Fútbol", "Pádel", "Tenis"],
-            width=140, command=self._on_tipo_change, **combo_kw)
-        self.combo_tipo.set("Pádel")
-        self.combo_tipo.pack(fill="x")
+            col_tipo = ctk.CTkFrame(fila, fg_color="transparent")
+            col_tipo.pack(side="left", expand=False, fill="x", padx=(0, 10))
+            ctk.CTkLabel(col_tipo, text="TIPO", **lbl_kw).pack(anchor="w", pady=(0, 4))
+            self.combo_tipo = ctk.CTkComboBox(col_tipo, values=["Fútbol", "Pádel", "Tenis"],
+                width=140, command=self._on_tipo_change, **combo_kw)
+            self.combo_tipo.set("Pádel")
+            self.combo_tipo.pack(fill="x")
 
-        col_precio = ctk.CTkFrame(fila, fg_color="transparent")
-        col_precio.pack(side="left", expand=False, fill="x", padx=(0, 10))
-        ctk.CTkLabel(col_precio, text="PRECIO ($)", **lbl_kw).pack(anchor="w", pady=(0, 4))
-        self.entry_precio = ctk.CTkEntry(col_precio, placeholder_text="Ej: 5000",
-            fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", corner_radius=10, height=40, width=100)
-        self.entry_precio.pack(fill="x")
+            col_precio = ctk.CTkFrame(fila, fg_color="transparent")
+            col_precio.pack(side="left", expand=False, fill="x", padx=(0, 10))
+            ctk.CTkLabel(col_precio, text="PRECIO ($)", **lbl_kw).pack(anchor="w", pady=(0, 4))
+            self.entry_precio = ctk.CTkEntry(col_precio, placeholder_text="Ej: 5000",
+                fg_color="#1A1A1A", border_color="#252525", border_width=1,
+                text_color="#FFFFFF", corner_radius=10, height=40, width=100)
+            self.entry_precio.pack(fill="x")
 
-        col_dur = ctk.CTkFrame(fila, fg_color="transparent")
-        col_dur.pack(side="left", expand=False, fill="x", padx=(0, 10))
-        ctk.CTkLabel(col_dur, text="DURACIÓN (min)", **lbl_kw).pack(anchor="w", pady=(0, 4))
-        self.combo_dur = ctk.CTkComboBox(col_dur, values=_DURACIONES, width=120, **combo_kw)
-        self.combo_dur.set("90")
-        self.combo_dur.pack(fill="x")
+            col_dur = ctk.CTkFrame(fila, fg_color="transparent")
+            col_dur.pack(side="left", expand=False, fill="x", padx=(0, 10))
+            ctk.CTkLabel(col_dur, text="DURACIÓN (min)", **lbl_kw).pack(anchor="w", pady=(0, 4))
+            self.combo_dur = ctk.CTkComboBox(col_dur, values=_DURACIONES, width=120, **combo_kw)
+            self.combo_dur.set("90")
+            self.combo_dur.pack(fill="x")
 
-        ctk.CTkButton(fila, text="+ AGREGAR", command=self.agregar_cancha,
-            fg_color="#FF8C42", hover_color="#FFA066", text_color="#0D0D0D",
-            font=("Arial Black", 12, "bold"), corner_radius=10, width=110, height=40
-        ).pack(side="left", anchor="s")
+            ctk.CTkButton(fila, text="+ AGREGAR", command=self.agregar_cancha,
+                fg_color="#FF8C42", hover_color="#FFA066", text_color="#0D0D0D",
+                font=("Arial Black", 12, "bold"), corner_radius=10, width=110, height=40
+            ).pack(side="left", anchor="s")
 
         # Editar duración
         edit_card = ctk.CTkFrame(tab, fg_color="#111111", corner_radius=10)
         edit_card.pack(fill="x", padx=8, pady=4)
 
-        edit_row = ctk.CTkFrame(edit_card, fg_color="transparent")
-        edit_row.pack(padx=16, pady=10, fill="x")
+        # Fila 1 — cancha seleccionada + duración
+        edit_row1 = ctk.CTkFrame(edit_card, fg_color="transparent")
+        edit_row1.pack(padx=16, pady=(10, 4), fill="x")
 
-        self._lbl_sel = ctk.CTkLabel(edit_row,
+        self._lbl_sel = ctk.CTkLabel(edit_row1,
             text="Seleccioná una cancha para editar su duración o precio",
             font=("Arial", 10), text_color="#333333", anchor="w")
         self._lbl_sel.pack(side="left", expand=True, fill="x")
 
-        self._combo_dur_edit = ctk.CTkComboBox(edit_row, values=_DURACIONES,
+        self._combo_dur_edit = ctk.CTkComboBox(edit_row1, values=_DURACIONES,
             width=120, **combo_kw)
         self._combo_dur_edit.pack(side="left", padx=(10, 8))
         self._combo_dur_edit.set("60")
 
-        self._btn_actualizar = ctk.CTkButton(edit_row, text="ACTUALIZAR DURACIÓN",
+        self._btn_actualizar = ctk.CTkButton(edit_row1, text="ACTUALIZAR DURACIÓN",
             command=self._actualizar_duracion,
             fg_color="transparent", hover_color="#1A1A00",
             text_color="#FFD700", border_color="#2A2A00", border_width=1,
             corner_radius=10, width=180, height=36,
             font=("Arial", 11, "bold"), state="disabled",
         )
-        self._btn_actualizar.pack(side="left", padx=(0, 16))
+        self._btn_actualizar.pack(side="left")
 
-        ctk.CTkLabel(edit_row, text="PRECIO ($)",
-            font=("Arial", 10, "bold"), text_color="#555555").pack(side="left", padx=(0, 6))
-        self._entry_precio_edit = ctk.CTkEntry(edit_row, placeholder_text="0",
+        # Fila 2 — precio
+        edit_row2 = ctk.CTkFrame(edit_card, fg_color="transparent")
+        edit_row2.pack(padx=16, pady=(0, 10), fill="x")
+
+        ctk.CTkLabel(edit_row2, text="PRECIO ($)",
+            font=("Arial", 10, "bold"), text_color="#555555").pack(side="left", padx=(0, 8))
+        self._entry_precio_edit = ctk.CTkEntry(edit_row2, placeholder_text="0",
             fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", corner_radius=10, height=36, width=90)
-        self._entry_precio_edit.pack(side="left", padx=(0, 8))
+            text_color="#FFFFFF", corner_radius=10, height=36, width=120)
+        self._entry_precio_edit.pack(side="left", padx=(0, 10))
 
-        self._btn_actualizar_precio = ctk.CTkButton(edit_row, text="ACTUALIZAR PRECIO",
+        self._btn_actualizar_precio = ctk.CTkButton(edit_row2, text="ACTUALIZAR PRECIO",
             command=self._actualizar_precio,
             fg_color="transparent", hover_color="#001A1A",
             text_color="#00C4FF", border_color="#002A2A", border_width=1,
-            corner_radius=10, width=170, height=36,
+            corner_radius=10, width=180, height=36,
             font=("Arial", 11, "bold"), state="disabled",
         )
         self._btn_actualizar_precio.pack(side="left")
@@ -201,12 +214,13 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
         self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)
 
-        ctk.CTkButton(list_card, text="ELIMINAR CANCHA SELECCIONADA",
-            command=self.eliminar_cancha,
-            fg_color="transparent", hover_color="#1A0000",
-            text_color="#FF5C5C", border_color="#2A0000", border_width=1,
-            corner_radius=0, height=36, font=("Arial", 11, "bold")
-        ).pack(fill="x", pady=(6, 0))
+        if not solo_admin:
+            ctk.CTkButton(list_card, text="ELIMINAR CANCHA SELECCIONADA",
+                command=self.eliminar_cancha,
+                fg_color="transparent", hover_color="#1A0000",
+                text_color="#FF5C5C", border_color="#2A0000", border_width=1,
+                corner_radius=0, height=36, font=("Arial", 11, "bold")
+            ).pack(fill="x", pady=(6, 0))
 
     # ── Tab MANTENIMIENTO ─────────────────────────────────────────────────────
 
@@ -414,6 +428,10 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self._btn_actualizar_precio.configure(state="disabled")
 
     def agregar_cancha(self):
+        if SessionManager.es_admin():
+            messagebox.showwarning("Sin permiso",
+                "Solo el supervisor puede agregar canchas nuevas.")
+            return
         nombre = sanitizar_texto(self.entry_nombre.get(), max_largo=100)
         tipo   = self.combo_tipo.get().strip()
         try:
@@ -462,6 +480,10 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         self.cargar_canchas()
 
     def eliminar_cancha(self):
+        if SessionManager.es_admin():
+            messagebox.showwarning("Sin permiso",
+                "Solo el supervisor puede eliminar canchas.")
+            return
         seleccion = self.tree.selection()
         if not seleccion:
             messagebox.showwarning("Atención", "Seleccioná una cancha para eliminar.")

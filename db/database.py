@@ -38,6 +38,10 @@ _url = (
 engine = create_engine(
     _url,
     connect_args={"sslmode": "require"},
+    pool_size=5,
+    max_overflow=5,
+    pool_recycle=300,   # reciclar conexiones cada 5 min (Supabase timeout ~15 min)
+    pool_pre_ping=True, # verificar conexión viva antes de usarla
 )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

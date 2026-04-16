@@ -1,4 +1,5 @@
 # models/canchas_service.py
+import models.club    # noqa: F401 — necesario para que SQLAlchemy resuelva la FK canchas.club_id → clubs.id
 import models.reserva  # noqa: F401 — necesario para que SQLAlchemy resuelva Cancha.reservas
 from auth.session import SessionManager
 from db.database import get_connection

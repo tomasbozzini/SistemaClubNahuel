@@ -6,6 +6,7 @@ from sqlalchemy import and_
 
 from auth.session import SessionManager
 from db.database import get_connection
+import models.club    # noqa: F401 — necesario para que SQLAlchemy resuelva la FK reservas.club_id → clubs.id
 from models.cancha import Cancha
 from models.reserva import Reserva
 

@@ -1,5 +1,8 @@
 # ui/main_window.py
+import logging
 import customtkinter as ctk
+
+_log = logging.getLogger(__name__)
 from auth.session import SessionManager
 from ui.reservas_window import ReservasWindow
 from ui.ver_reservas_window import VerReservasWindow
@@ -225,8 +228,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             try:
                 cmd()
             except Exception as ex:
-                import traceback
-                traceback.print_exc()
+                _log.exception("Error al abrir ventana")
                 from tkinter import messagebox
                 messagebox.showerror("Error al abrir ventana", str(ex))
 
@@ -482,7 +484,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             try:
                 eliminar_reservas_expiradas()
             except Exception as e:
-                print(f"[warn] limpiar_reservas: {e}")
+                _log.warning("limpiar_reservas: %s", e)
         threading.Thread(target=_worker, daemon=True).start()
         self.after(60_000, self.limpiar_reservas_periodicamente)
 
