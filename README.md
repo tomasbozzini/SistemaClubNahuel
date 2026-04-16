@@ -1,4 +1,4 @@
-# Sistema de Reservas - Club Nahuel
+# Sistema de Reservas 
 
 Aplicación de escritorio para gestionar reservas de canchas deportivas. Construida con Python, CustomTkinter y PostgreSQL (Supabase).
 
