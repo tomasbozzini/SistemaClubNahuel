@@ -20,7 +20,8 @@ def migrar():
             ))
             conn.commit()
 
-        # Crear tablas nuevas (clientes, bloqueos_cancha, configuracion)
+        # Crear tablas nuevas (clientes, bloqueos_cancha, configuracion, clubs)
+        import models.club           # noqa: F401
         import models.usuario        # noqa: F401
         import models.cancha         # noqa: F401
         import models.reserva        # noqa: F401

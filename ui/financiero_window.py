@@ -24,7 +24,8 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
             self.after(0, self.destroy)
             return
 
-        self.title("Historial Financiero — Club Nahuel")
+        from db.database import get_club_nombre
+        self.title(f"Historial Financiero — {get_club_nombre()}")
         self.update_idletasks()
         centrar_ventana(self, 1100, 680)
         self.transient(parent)
@@ -73,7 +74,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         cards_def = [
             ("hoy",   "HOY",       "#FFD700"),
             ("mes",   "ESTE MES",  "#00C4FF"),
-            ("anio",  "ESTE AÑO",  "#A3F843"),
+            ("anio",  "ESTE AÑO",  "#7C5CFF"),
             ("total", "TOTAL",     "#9D6EFF"),
         ]
         for key, titulo, color in cards_def:
@@ -157,7 +158,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkButton(
             side_right, text="⬇ EXCEL", width=96, height=32,
             fg_color="transparent", hover_color="#0A1A0A",
-            text_color="#A3F843", border_color="#1A2A1A", border_width=1,
+            text_color="#7C5CFF", border_color="#2A1F55", border_width=1,
             corner_radius=8, font=("Arial", 11, "bold"),
             command=lambda: exportar_excel_financiero(self._filas_actuales),
         ).pack(side="right", padx=4)
@@ -196,7 +197,7 @@ class FinancieroWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        self.tree.tag_configure("completada", foreground="#A3F843")
+        self.tree.tag_configure("completada", foreground="#7C5CFF")
         self.tree.tag_configure("confirmada", foreground="#FFA040")
         self.tree.tag_configure("cancelada",  foreground="#FF5C5C")
 

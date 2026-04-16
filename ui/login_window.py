@@ -8,7 +8,8 @@ from auth.session import SessionManager
 class LoginWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Club Nahuel — Iniciar sesión")
+        from db.database import get_club_nombre
+        self.title(f"{get_club_nombre()} — Iniciar sesión")
         self.resizable(False, False)
         self.configure(fg_color="#0D0D0D")
         self._set_centered(420, 300)
@@ -29,10 +30,12 @@ class LoginWindow(ctk.CTk):
         self._splash.place(relx=0.5, rely=0.42, anchor="center")
 
         ctk.CTkLabel(self._splash, text="◈",
-            font=("Arial Black", 52), text_color="#A3F843").pack()
-        ctk.CTkLabel(self._splash, text="CLUB NAHUEL",
+            font=("Arial Black", 52), text_color="#7C5CFF").pack()
+
+        from db.database import get_club_nombre
+        ctk.CTkLabel(self._splash, text=get_club_nombre().upper(),
             font=("Arial Black", 22, "bold"), text_color="#FFFFFF").pack(pady=(4, 0))
-        ctk.CTkFrame(self._splash, height=2, width=80, fg_color="#A3F843",
+        ctk.CTkFrame(self._splash, height=2, width=80, fg_color="#7C5CFF",
             corner_radius=1).pack(pady=14)
 
         self._lbl_estado = ctk.CTkLabel(
@@ -44,8 +47,8 @@ class LoginWindow(ctk.CTk):
         self._btn_reintentar = ctk.CTkButton(
             self._splash, text="REINTENTAR",
             command=self._verificar_conexion,
-            fg_color="#A3F843", hover_color="#C5FF6B",
-            text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
+            fg_color="#7C5CFF", hover_color="#9D84FF",
+            text_color="#FFFFFF", font=("Arial Black", 11, "bold"),
             corner_radius=10, height=40, width=160,
         )
         self._btn_salir = ctk.CTkButton(
@@ -89,7 +92,7 @@ class LoginWindow(ctk.CTk):
 
     def _build_ui(self):
         # Panel izquierdo — marca
-        left = ctk.CTkFrame(self, fg_color="#A3F843", corner_radius=0, width=265)
+        left = ctk.CTkFrame(self, fg_color="#13102A", corner_radius=0, width=265)
         left.pack(side="left", fill="y")
         left.pack_propagate(False)
 
@@ -97,18 +100,22 @@ class LoginWindow(ctk.CTk):
         brand.place(relx=0.5, rely=0.44, anchor="center")
 
         ctk.CTkLabel(brand, text="◈",
-            font=("Arial Black", 54), text_color="#0D0D0D").pack()
-        ctk.CTkLabel(brand, text="CLUB\nNAHUEL",
-            font=("Arial Black", 26, "bold"), text_color="#0D0D0D",
+            font=("Arial Black", 54), text_color="#7C5CFF").pack()
+        from db.database import get_club_nombre as _gcn
+        _nombre = _gcn()
+        _partes = _nombre.split(" ", 1)
+        _texto  = "\n".join(_partes) if len(_nombre) > 10 else _nombre
+        ctk.CTkLabel(brand, text=_texto.upper(),
+            font=("Arial Black", 26, "bold"), text_color="#FFFFFF",
             justify="center").pack(pady=(2, 0))
-        ctk.CTkFrame(brand, height=2, width=90, fg_color="#0D0D0D",
+        ctk.CTkFrame(brand, height=2, width=90, fg_color="#7C5CFF",
             corner_radius=1).pack(pady=(16, 16))
         ctk.CTkLabel(brand, text="S I S T E M A  D E  R E S E R V A S",
-            font=("Arial", 8, "bold"), text_color="#1E1E1E").pack()
+            font=("Arial", 8, "bold"), text_color="#5A557A").pack()
 
         from models.actualizacion_service import APP_VERSION
         ctk.CTkLabel(left, text=f"v {APP_VERSION}",
-            font=("Arial", 9), text_color="#2C2C1A").place(relx=0.5, rely=0.93, anchor="center")
+            font=("Arial", 9), text_color="#3A3560").place(relx=0.5, rely=0.93, anchor="center")
 
         # Panel derecho — formulario
         right = ctk.CTkFrame(self, fg_color="#0D0D0D", corner_radius=0)
@@ -149,8 +156,8 @@ class LoginWindow(ctk.CTk):
         self.btn_login = ctk.CTkButton(
             form_wrap, text="INGRESAR  →",
             command=self._intentar_login,
-            fg_color="#A3F843", hover_color="#C5FF6B",
-            text_color="#0D0D0D", font=("Arial Black", 13, "bold"),
+            fg_color="#7C5CFF", hover_color="#9D84FF",
+            text_color="#FFFFFF", font=("Arial Black", 13, "bold"),
             corner_radius=10, height=48, width=310,
         )
         self.btn_login.pack(pady=(20, 0))
@@ -208,10 +215,30 @@ class LoginWindow(ctk.CTk):
         usuario = SessionManager.get_usuario_actual()
         self.withdraw()
         try:
-            if usuario and usuario.rol == "supervisor":
+            if usuario and usuario.rol == "superadmin":
+                from ui.superadmin_window import SuperAdminWindow
+                SuperAdminWindow(self)
+            elif usuario and usuario.rol == "supervisor":
                 from ui.supervisor_window import SupervisorWindow
                 SupervisorWindow(self)
             else:
+                # Admin — verificar modo mantenimiento
+                club_id = getattr(usuario, "club_id", None) if usuario else None
+                if club_id:
+                    try:
+                        from models.clubs_service import club_en_mantenimiento
+                        if club_en_mantenimiento(club_id):
+                            self.deiconify()
+                            from tkinter import messagebox
+                            messagebox.showwarning(
+                                "Sistema en mantenimiento",
+                                "El club está actualmente en modo mantenimiento.\n"
+                                "Contactá al administrador del sistema.",
+                            )
+                            SessionManager.cerrar_sesion()
+                            return
+                    except Exception:
+                        pass
                 from ui.main_window import MainWindow
                 MainWindow(self)
         except Exception:

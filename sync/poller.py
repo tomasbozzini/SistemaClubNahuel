@@ -102,10 +102,14 @@ class ReservasPoller:
 
     def _consultar(self):
         try:
+            from auth.session import SessionManager
+            club_id = SessionManager.get_club_id()
+
             with get_connection() as session:
-                todas = session.query(Reserva).order_by(
-                    Reserva.fecha, Reserva.hora_inicio
-                ).all()
+                q = session.query(Reserva).order_by(Reserva.fecha, Reserva.hora_inicio)
+                if club_id is not None:
+                    q = q.filter(Reserva.club_id == club_id)
+                todas = q.all()
 
                 reservas_serializadas = [_serializar(r) for r in todas]
 

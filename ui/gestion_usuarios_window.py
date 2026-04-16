@@ -19,7 +19,8 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
             self.after(0, self.destroy)
             return
 
-        self.title("Gestión de Usuarios — Club Nahuel")
+        from db.database import get_club_nombre
+        self.title(f"Gestión de Usuarios — {get_club_nombre()}")
         self.update_idletasks()
         centrar_ventana(self, 760, 680)
         self.transient(parent)
@@ -140,7 +141,7 @@ class GestionUsuariosWindow(VentanaMixin, ctk.CTkToplevel):
         self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        self.tree.tag_configure("activo",   foreground="#A3F843")
+        self.tree.tag_configure("activo",   foreground="#7C5CFF")
         self.tree.tag_configure("inactivo", foreground="#FF5C5C")
 
         self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)

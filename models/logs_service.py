@@ -16,10 +16,14 @@ def registrar_log(
     username: str = None,
     usuario_id: int = None,
     detalle: str = None,
+    club_id: int = None,
 ):
     """
     Registra un evento de acceso en la tabla logs_acceso.
     Falla silenciosamente para no interrumpir el flujo de autenticación.
+
+    Si club_id no se pasa explícitamente, se toma de la sesión activa.
+    Durante el login (antes de establecer sesión) puede ser None.
 
     Acciones esperadas:
         login_ok      — login exitoso
@@ -29,6 +33,13 @@ def registrar_log(
         timeout       — cierre automático por inactividad
     """
     try:
+        if club_id is None:
+            try:
+                from auth.session import SessionManager
+                club_id = SessionManager.get_club_id()
+            except Exception:
+                pass
+
         with get_connection() as session:
             log = LogAcceso(
                 usuario_id=usuario_id,
@@ -36,6 +47,7 @@ def registrar_log(
                 accion=accion,
                 detalle=detalle,
                 hostname=_get_hostname(),
+                club_id=club_id,
             )
             session.add(log)
             session.commit()

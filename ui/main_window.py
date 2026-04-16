@@ -1,7 +1,5 @@
 # ui/main_window.py
 import customtkinter as ctk
-from customtkinter import CTkImage
-from PIL import Image
 from auth.session import SessionManager
 from ui.reservas_window import ReservasWindow
 from ui.ver_reservas_window import VerReservasWindow
@@ -15,12 +13,12 @@ POLL_CHECK_MS = 500
 
 # Acento por sección
 _COLOR = {
-    "reserva":        "#A3F843",
+    "reserva":        "#7C5CFF",
     "ver":            "#00C4FF",
     "calendario":     "#9D6EFF",
     "canchas":        "#FF8C42",
     "finanzas":       "#FFD700",
-    "disponibilidad": "#00D68F",
+    "disponibilidad": "#00D4FF",
     "clientes":       "#9D6EFF",
 }
 
@@ -34,7 +32,8 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
             self.after(0, self._volver_login)
             return
 
-        self.title("Sistema de Reservas - Club Nahuel")
+        from db.database import get_club_nombre
+        self.title(f"Sistema de Reservas - {get_club_nombre()}")
         self.update_idletasks()
         from ui.ventana_mixin import _get_work_area
         work_w, work_h = _get_work_area(self)
@@ -78,7 +77,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         usuario = SessionManager.get_usuario_actual()
 
         # Barra superior de acento
-        ctk.CTkFrame(self, height=4, fg_color="#A3F843", corner_radius=0).pack(fill="x")
+        ctk.CTkFrame(self, height=4, fg_color="#7C5CFF", corner_radius=0).pack(fill="x")
 
         # Header
         header_frame = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
@@ -89,28 +88,24 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         hpad = {"full": (22, 18), "compact": (12, 10), "mini": (6, 6)}[size]
         inner_header.pack(pady=hpad)
 
-        logo_path = "assets/logoclubnahuel.png"
-        logo_size = {"full": (88, 72), "compact": (68, 56), "mini": (52, 42)}[size]
-        logo_img = CTkImage(
-            light_image=Image.open(logo_path),
-            dark_image=Image.open(logo_path),
-            size=logo_size
-        )
-        ctk.CTkLabel(inner_header, image=logo_img, text="").pack()
+        icon_sz = {"full": 48, "compact": 38, "mini": 30}[size]
+        ctk.CTkLabel(inner_header, text="◈",
+            font=("Arial Black", icon_sz), text_color="#7C5CFF").pack()
         title_font = {"full": 32, "compact": 24, "mini": 20}[size]
         title_pady = {"full": (8, 0), "compact": (6, 0), "mini": (4, 0)}[size]
+        from db.database import get_club_nombre
         ctk.CTkLabel(
-            inner_header, text="CLUB NAHUEL",
+            inner_header, text=get_club_nombre().upper(),
             font=("Arial Black", title_font, "bold"), text_color="#FFFFFF"
         ).pack(pady=title_pady)
         if size != "mini":
             ctk.CTkLabel(
                 inner_header, text="S I S T E M A   D E   R E S E R V A S",
-                font=("Arial", 10), text_color="#A3F843"
+                font=("Arial", 10), text_color="#7C5CFF"
             ).pack(pady=(2, 0))
 
         # Chip de usuario
-        rol_color = "#A3F843" if usuario.rol == "admin" else "#00C4FF"
+        rol_color = "#7C5CFF" if usuario.rol == "admin" else "#00C4FF"
         chip = ctk.CTkFrame(inner_header, fg_color="#1A1A1A", corner_radius=20,
             border_width=1, border_color="#2A2A2A")
         chip_pady = {"full": (12, 0), "compact": (8, 0), "mini": (5, 0)}[size]
@@ -314,7 +309,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         self._lbl_sync.pack(side="right", padx=(0, 2))
 
     def _set_sync_ok(self, timestamp):
-        self._dot_sync.configure(text_color="#A3F843")
+        self._dot_sync.configure(text_color="#7C5CFF")
         self._lbl_sync.configure(
             text=f"Sincronizado  {timestamp.strftime('%H:%M:%S')}",
             text_color="#3A4A2A"
@@ -325,7 +320,7 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         self._lbl_sync.configure(text="Sin conexión — reintentando", text_color="#4A3A00")
 
     def _set_sync_reconectado(self, timestamp):
-        self._dot_sync.configure(text_color="#A3F843")
+        self._dot_sync.configure(text_color="#7C5CFF")
         self._lbl_sync.configure(
             text=f"Reconectado  {timestamp.strftime('%H:%M:%S')}",
             text_color="#3A4A2A"

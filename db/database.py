@@ -69,3 +69,30 @@ def probar_conexion() -> bool:
         return True
     except Exception:
         return False
+
+
+def get_club_nombre() -> str:
+    """Lee el nombre del club del config.ini (sección [club], clave 'nombre')."""
+    return _cfg.get("club", "nombre", fallback="Mi Club").strip()
+
+
+def get_club_id_config() -> int:
+    """Lee el club_id del config.ini ya parseado (sección [club])."""
+    try:
+        return int(_cfg.get("club", "club_id", fallback="1"))
+    except (ValueError, TypeError):
+        return 1
+
+
+def get_usuario_password(clave: str) -> str:
+    """
+    Lee una contraseña de la sección [usuarios] del config.ini.
+    clave puede ser 'admin_password' o 'superadmin_password'.
+    Lanza EnvironmentError si la clave está vacía o ausente.
+    """
+    valor = _cfg.get("usuarios", clave, fallback="").strip()
+    if not valor:
+        raise EnvironmentError(
+            f"Falta '{clave}' en la sección [usuarios] de config.ini."
+        )
+    return valor

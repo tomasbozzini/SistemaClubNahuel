@@ -197,7 +197,7 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         scrollbar_c.pack(side="right", fill="y")
 
         self.tree.tag_configure("padel",  foreground="#00C4FF")
-        self.tree.tag_configure("futbol", foreground="#A3F843")
+        self.tree.tag_configure("futbol", foreground="#7C5CFF")
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
         self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)
 
@@ -435,6 +435,24 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         if tipo not in _TIPOS_VALIDOS:
             messagebox.showwarning("Error", "Tipo de cancha inválido.")
             return
+        # Verificar límite del plan
+        try:
+            from models.planes import get_limite_canchas
+            from models.canchas_service import listar_canchas
+            from auth.session import SessionManager
+            limite = get_limite_canchas(SessionManager.get_plan())
+            if limite is not None:
+                actuales = len(listar_canchas())
+                if actuales >= limite:
+                    messagebox.showwarning(
+                        "Límite del plan",
+                        f"Tu plan permite hasta {limite} cancha(s).\n"
+                        "Contactá al administrador para actualizar el plan.",
+                    )
+                    return
+        except Exception:
+            pass
+
         if existe_cancha(nombre):
             messagebox.showerror("Error", "Ya existe una cancha con ese nombre.")
             return

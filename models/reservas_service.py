@@ -37,20 +37,23 @@ def _duracion_cancha(cancha: Cancha) -> timedelta:
 
 def listar_reservas() -> list[tuple]:
     """
-    Retorna reservas con estado != 'completada'.
+    Retorna reservas con estado != 'completada' del club activo.
     Para series recurrentes, muestra solo la próxima fecha (la más cercana).
     Tupla: (id[0], nombre_cliente[1], cancha_nombre[2], tipo[3], fecha[4],
              hora_inicio[5], notas[6], telefono_cliente[7],
              estado_pago[8], grupo_recurrente_id[9])
     """
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
-        filas = (
+        q = (
             session.query(Reserva, Cancha)
             .join(Cancha, Reserva.cancha_id == Cancha.id)
             .filter(Reserva.estado != "completada")
-            .order_by(Reserva.fecha, Reserva.hora_inicio)
-            .all()
         )
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        filas = q.order_by(Reserva.fecha, Reserva.hora_inicio).all()
+
         # Contar cuántas ocurrencias quedan por grupo recurrente
         conteo_grupo: dict[int, int] = {}
         for r, c in filas:
@@ -88,17 +91,19 @@ def listar_reservas() -> list[tuple]:
 
 def listar_reservas_por_fecha(fecha_date) -> list[tuple]:
     """
-    Retorna reservas confirmadas para una fecha específica.
+    Retorna reservas confirmadas para una fecha específica del club activo.
     [(cancha_id, cancha_nombre, hora_inicio_str, hora_fin_str, nombre_cliente, tipo), ...]
     """
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
-        filas = (
+        q = (
             session.query(Reserva, Cancha)
             .join(Cancha, Reserva.cancha_id == Cancha.id)
             .filter(Reserva.fecha == fecha_date, Reserva.estado == "confirmada")
-            .order_by(Reserva.hora_inicio)
-            .all()
         )
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        filas = q.order_by(Reserva.hora_inicio).all()
         return [
             (
                 r.cancha_id,
@@ -120,15 +125,18 @@ def listar_historial_financiero(
     cancha_id: int = None,
 ) -> list[tuple]:
     """
-    Retorna todas las reservas (todos los estados) que coincidan con los filtros.
+    Retorna todas las reservas (todos los estados) del club activo que coincidan con los filtros.
     Columnas: (id, cliente, cancha_nombre, tipo, fecha, hora_inicio, hora_fin,
                duracion_minutos, estado, precio_total)
     """
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
         q = (
             session.query(Reserva, Cancha)
             .join(Cancha, Reserva.cancha_id == Cancha.id)
         )
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
         if fecha_desde:
             q = q.filter(Reserva.fecha >= fecha_desde)
         if fecha_hasta:
@@ -156,14 +164,14 @@ def listar_historial_financiero(
 
 
 def totales_financieros() -> dict:
-    """Retorna totales de reservas con estado='completada'."""
+    """Retorna totales de reservas con estado='completada' del club activo."""
     hoy = date.today()
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
-        completadas = (
-            session.query(Reserva)
-            .filter(Reserva.estado == "completada")
-            .all()
-        )
+        q = session.query(Reserva).filter(Reserva.estado == "completada")
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        completadas = q.all()
         total_hoy  = sum(r.precio_total or 0 for r in completadas if r.fecha == hoy)
         total_mes  = sum(r.precio_total or 0 for r in completadas
                          if r.fecha.year == hoy.year and r.fecha.month == hoy.month)
@@ -187,6 +195,7 @@ def insertar_reserva(
     hora_inicio = datetime.strptime(hora, "%H:%M").time()
     usuario     = SessionManager.get_usuario_actual()
     creado_por  = usuario.id if usuario else None
+    club_id     = SessionManager.get_club_id()
     _PAGOS_VALIDOS = {"pendiente", "seña", "pagado"}
     if estado_pago not in _PAGOS_VALIDOS:
         estado_pago = "pendiente"
@@ -209,6 +218,7 @@ def insertar_reserva(
             estado_pago=estado_pago,
             precio_total=precio,
             creado_por=creado_por,
+            club_id=club_id,
         )
         session.add(reserva)
         session.commit()
@@ -237,6 +247,7 @@ def insertar_reservas_recurrentes(
     hora_inicio  = datetime.strptime(hora, "%H:%M").time()
     usuario      = SessionManager.get_usuario_actual()
     creado_por   = usuario.id if usuario else None
+    club_id      = SessionManager.get_club_id()
 
     # Generar todas las fechas con el mismo día de semana
     fechas = []
@@ -268,15 +279,15 @@ def insertar_reservas_recurrentes(
                 fechas_conflicto.append(str(f))
                 continue
 
-            reservas_dia = (
-                session.query(Reserva)
-                .filter(
-                    Reserva.cancha_id == cancha_id,
-                    Reserva.fecha == f,
-                    Reserva.estado != "completada",
-                )
-                .all()
+            q = session.query(Reserva).filter(
+                Reserva.cancha_id == cancha_id,
+                Reserva.fecha == f,
+                Reserva.estado != "completada",
             )
+            if club_id is not None:
+                q = q.filter(Reserva.club_id == club_id)
+            reservas_dia = q.all()
+
             conflicto = any(
                 ini_mins < _t_mins(r.hora_fin) and fin_mins > _t_mins(r.hora_inicio)
                 for r in reservas_dia
@@ -299,6 +310,7 @@ def insertar_reservas_recurrentes(
                 precio_total=precio,
                 grupo_recurrente_id=grupo_id,
                 creado_por=creado_por,
+                club_id=club_id,
             ))
             exitosas += 1
 
@@ -309,8 +321,12 @@ def insertar_reservas_recurrentes(
 
 
 def eliminar_reserva(reserva_id: int):
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
-        r = session.query(Reserva).filter_by(id=reserva_id).first()
+        q = session.query(Reserva).filter(Reserva.id == reserva_id)
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        r = q.first()
         if r:
             session.delete(r)
             session.commit()
@@ -320,19 +336,27 @@ def eliminar_reservas_futuras_del_grupo(grupo_id: int, desde_fecha):
     """Elimina todas las reservas del grupo desde desde_fecha (inclusive)."""
     if isinstance(desde_fecha, str):
         desde_fecha = datetime.strptime(desde_fecha, "%Y-%m-%d").date()
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
-        session.query(Reserva).filter(
+        q = session.query(Reserva).filter(
             Reserva.grupo_recurrente_id == grupo_id,
             Reserva.fecha >= desde_fecha,
             Reserva.estado == "confirmada",
-        ).delete()
+        )
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        q.delete()
         session.commit()
 
 
 def actualizar_estado_pago(reserva_id: int, estado_pago: str):
     """Actualiza el estado de pago de una reserva: pendiente / seña / pagado."""
+    club_id = SessionManager.get_club_id()
     with get_connection() as session:
-        r = session.query(Reserva).filter_by(id=reserva_id).first()
+        q = session.query(Reserva).filter(Reserva.id == reserva_id)
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        r = q.first()
         if r:
             r.estado_pago = estado_pago
             session.commit()
@@ -366,21 +390,21 @@ def hay_superposicion(cancha_id: int, fecha: str, hora: str) -> bool:
         return False
 
     fecha_date = datetime.strptime(fecha, "%Y-%m-%d").date()
+    club_id = SessionManager.get_club_id()
 
     with get_connection() as session:
         cancha   = session.query(Cancha).filter_by(id=cancha_id).first()
         duracion = _duracion_cancha(cancha)
         hora_fin = (datetime.combine(date.today(), hora_inicio) + duracion).time()
 
-        reservas = (
-            session.query(Reserva)
-            .filter(
-                Reserva.cancha_id == cancha_id,
-                Reserva.fecha == fecha_date,
-                Reserva.estado != "completada",
-            )
-            .all()
+        q = session.query(Reserva).filter(
+            Reserva.cancha_id == cancha_id,
+            Reserva.fecha == fecha_date,
+            Reserva.estado != "completada",
         )
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        reservas = q.all()
 
     ini = _t_mins(hora_inicio)
     fin = _t_mins(hora_fin)
@@ -399,6 +423,7 @@ def listar_slots_disponibles(cancha_id: int, fecha: str) -> list[str]:
     from models.bloqueos_service import cancha_bloqueada
 
     fecha_date = datetime.strptime(fecha, "%Y-%m-%d").date() if isinstance(fecha, str) else fecha
+    club_id = SessionManager.get_club_id()
 
     if cancha_bloqueada(cancha_id, fecha_date):
         return []
@@ -409,15 +434,14 @@ def listar_slots_disponibles(cancha_id: int, fecha: str) -> list[str]:
             return []
         duracion = _duracion_cancha(cancha)
 
-        reservas_dia = (
-            session.query(Reserva)
-            .filter(
-                Reserva.cancha_id == cancha_id,
-                Reserva.fecha == fecha_date,
-                Reserva.estado != "completada",
-            )
-            .all()
+        q = session.query(Reserva).filter(
+            Reserva.cancha_id == cancha_id,
+            Reserva.fecha == fecha_date,
+            Reserva.estado != "completada",
         )
+        if club_id is not None:
+            q = q.filter(Reserva.club_id == club_id)
+        reservas_dia = q.all()
         ocupados = [(r.hora_inicio, r.hora_fin) for r in reservas_dia]
 
     # Cierre = medianoche: permite slots que terminan hasta las 00:00
@@ -435,7 +459,7 @@ def listar_slots_disponibles(cancha_id: int, fecha: str) -> list[str]:
         if slot_fin_dt > cierre_dt:
             break
         if slot_dt > ahora:
-            s_min   = slot_dt.hour * 60 + slot_dt.minute
+            s_min     = slot_dt.hour * 60 + slot_dt.minute
             s_fin_min = slot_fin_dt.hour * 60 + slot_fin_dt.minute
             if s_fin_min == 0:
                 s_fin_min = 1440  # 00:00 = medianoche = 24*60
@@ -454,6 +478,7 @@ def eliminar_reservas_expiradas():
     Marca como 'completada' las reservas cuyo hora_fin ya pasó.
     No las elimina — quedan en el historial financiero.
     hora_fin == time(0,0) representa medianoche del día siguiente (fin de turno 23:00–00:00).
+    Aplica a todas las reservas de todos los clubes (tarea de mantenimiento global).
     """
     ahora = datetime.now()
     with get_connection() as session:

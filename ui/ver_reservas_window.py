@@ -13,9 +13,9 @@ from models.reservas_service import (
 from ui.export_service import exportar_excel_reservas, exportar_pdf_reservas
 
 _COLOR_TIPO  = {"pádel": "#00C4FF", "padel": "#00C4FF",
-                "fútbol": "#A3F843", "futbol": "#A3F843",
+                "fútbol": "#7C5CFF", "futbol": "#7C5CFF",
                 "tenis": "#FF8C42"}
-_COLOR_PAGO  = {"pendiente": "#FF5C5C", "seña": "#FFD700", "pagado": "#A3F843"}
+_COLOR_PAGO  = {"pendiente": "#FF5C5C", "seña": "#FFD700", "pagado": "#7C5CFF"}
 _LABEL_PAGO  = {"pendiente": "● Pendiente", "seña": "● Seña", "pagado": "● Pagado"}
 
 
@@ -114,7 +114,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         leyenda = ctk.CTkFrame(right_hdr, fg_color="transparent")
         leyenda.pack(side="left")
-        for label, color in [("Pádel", "#00C4FF"), ("Fútbol", "#A3F843"), ("Tenis", "#FF8C42")]:
+        for label, color in [("Pádel", "#00C4FF"), ("Fútbol", "#7C5CFF"), ("Tenis", "#FF8C42")]:
             ctk.CTkLabel(leyenda, text="● ", font=("Arial", 10), text_color=color).pack(side="left")
             ctk.CTkLabel(leyenda, text=label + "  ", font=("Arial", 10),
                 text_color="#444444").pack(side="left")
@@ -147,7 +147,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         # Tags por tipo de cancha
         self.tree.tag_configure("padel",  foreground="#00C4FF")
-        self.tree.tag_configure("futbol", foreground="#A3F843")
+        self.tree.tag_configure("futbol", foreground="#7C5CFF")
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
 
         # Tag para cabeceras de sección
@@ -166,7 +166,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkButton(barra_top, text="⬇ EXCEL",
             command=self._exportar_excel,
             fg_color="transparent", hover_color="#0A1A0A",
-            text_color="#A3F843", border_color="#1A2A1A", border_width=1,
+            text_color="#7C5CFF", border_color="#2A1F55", border_width=1,
             corner_radius=0, height=38, width=110, font=("Arial", 11, "bold"),
         ).pack(side="left")
 
@@ -187,7 +187,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkButton(barra_top, text="📱 RECORDATORIO",
             command=lambda: self._whatsapp("recordatorio"),
             fg_color="transparent", hover_color="#001A00",
-            text_color="#A3F843", border_color="#0A1A0A", border_width=1,
+            text_color="#7C5CFF", border_color="#1A1235", border_width=1,
             corner_radius=0, height=38, width=160, font=("Arial", 10, "bold"),
         ).pack(side="left")
 
@@ -350,7 +350,7 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         fila_btns = ctk.CTkFrame(dlg, fg_color="transparent")
         fila_btns.pack()
 
-        for estado, color in [("pendiente", "#FF5C5C"), ("seña", "#FFD700"), ("pagado", "#A3F843")]:
+        for estado, color in [("pendiente", "#FF5C5C"), ("seña", "#FFD700"), ("pagado", "#7C5CFF")]:
             bold = "bold" if estado == estado_actual else "normal"
             ctk.CTkButton(fila_btns,
                 text=estado.capitalize(),

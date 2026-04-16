@@ -168,7 +168,8 @@ def exportar_pdf_reservas(filas: list) -> None:
         # Título
         pdf.set_font("Helvetica", "B", 16)
         pdf.set_text_color(30, 30, 30)
-        pdf.cell(0, 10, "Club Nahuel - Listado de Reservas", ln=True, align="C")
+        from db.database import get_club_nombre
+        pdf.cell(0, 10, f"{get_club_nombre()} - Listado de Reservas", ln=True, align="C")
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(120, 120, 120)
         pdf.cell(0, 6, f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
@@ -220,7 +221,8 @@ def exportar_pdf_financiero(filas: list) -> None:
         # Título
         pdf.set_font("Helvetica", "B", 16)
         pdf.set_text_color(30, 30, 30)
-        pdf.cell(0, 10, "Club Nahuel - Historial Financiero", ln=True, align="C")
+        from db.database import get_club_nombre
+        pdf.cell(0, 10, f"{get_club_nombre()} - Historial Financiero", ln=True, align="C")
         pdf.set_font("Helvetica", "", 9)
         pdf.set_text_color(120, 120, 120)
         pdf.cell(0, 6, f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")

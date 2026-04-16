@@ -23,10 +23,8 @@ def _cargar_intentos() -> dict:
                 data = json.load(f)
             if isinstance(data, dict):
                 return data
-            # Estructura inválida — resetear
             _ATTEMPTS_FILE.unlink(missing_ok=True)
     except json.JSONDecodeError:
-        # Archivo corrupto — borrarlo para no bloquear logins legítimos
         try:
             _ATTEMPTS_FILE.unlink(missing_ok=True)
         except Exception:
@@ -108,18 +106,31 @@ def verificar_login(username: str, password: str):
         return None
 
     _limpiar_intentos(username)
-    registrar_log("login_ok", username=username, usuario_id=usuario.id)
+    club_id = getattr(usuario, "club_id", None)
+    registrar_log("login_ok", username=username, usuario_id=usuario.id, club_id=club_id)
     return usuario
 
 
-def crear_usuario(nombre: str, email: str, password: str, rol: str, usuario_actual) -> Usuario:
+def crear_usuario(nombre: str, email: str, password: str, rol: str, usuario_actual,
+                  club_id: int = None) -> Usuario:
     """
-    Crea un nuevo usuario. Solo puede ser llamado por un admin.
-    Lanza PermissionError si usuario_actual no es admin.
+    Crea un nuevo usuario.
+    - superadmin puede crear cualquier rol con cualquier club_id.
+    - supervisor puede crear admins para su propio club.
+    - admin no puede crear usuarios.
+    Lanza PermissionError si el usuario_actual no tiene permisos.
     Lanza ValueError si el nombre ya existe.
     """
-    if not usuario_actual or usuario_actual.rol != "admin":
+    if not usuario_actual:
+        raise PermissionError("No hay sesión activa.")
+
+    rol_actual = usuario_actual.rol
+    if rol_actual not in ("admin", "supervisor", "superadmin"):
         raise PermissionError("Solo un administrador puede crear usuarios.")
+
+    # Determinar club_id del nuevo usuario
+    if club_id is None:
+        club_id = getattr(usuario_actual, "club_id", None)
 
     nombre = nombre.strip()
 
@@ -132,6 +143,7 @@ def crear_usuario(nombre: str, email: str, password: str, rol: str, usuario_actu
             email=email.strip().lower() if email else "",
             password_hash=hashear_password(password),
             rol=rol,
+            club_id=club_id,
         )
         session.add(nuevo)
         session.commit()

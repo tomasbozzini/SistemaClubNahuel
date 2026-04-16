@@ -5,7 +5,7 @@ from tkinter import ttk, messagebox
 from auth.session import SessionManager
 from models.canchas_service import listar_canchas_con_precio, actualizar_precio_cancha
 
-_COLOR = "#00D68F"   # verde esmeralda — color precios
+_COLOR = "#00D4FF"   # verde esmeralda — color precios
 
 
 def _fmt_peso(valor: float) -> str:
@@ -22,7 +22,8 @@ class PreciosWindow(VentanaMixin, ctk.CTkToplevel):
             self.after(0, self.destroy)
             return
 
-        self.title("Gestión de Precios — Club Nahuel")
+        from db.database import get_club_nombre
+        self.title(f"Gestión de Precios — {get_club_nombre()}")
         self.update_idletasks()
         centrar_ventana(self, 700, 560)
         self.transient(parent)
@@ -119,7 +120,7 @@ class PreciosWindow(VentanaMixin, ctk.CTkToplevel):
         scrollbar.pack(side="right", fill="y")
 
         self.tree.tag_configure("padel",  foreground="#00C4FF")
-        self.tree.tag_configure("futbol", foreground="#A3F843")
+        self.tree.tag_configure("futbol", foreground="#7C5CFF")
         self.tree.tag_configure("tenis",  foreground="#FF8C42")
 
         self.tree.bind("<<TreeviewSelect>>", self._on_seleccion)

@@ -1,13 +1,11 @@
 # ui/supervisor_window.py
 import customtkinter as ctk
 from ui.ventana_mixin import VentanaMixin, InactividadMixin
-from customtkinter import CTkImage
-from PIL import Image
 from auth.session import SessionManager
 
 _COLOR = {
-    "reservas":  "#A3F843",
-    "precios":   "#00D68F",
+    "reservas":  "#7C5CFF",
+    "precios":   "#00D4FF",
     "usuarios":  "#9D6EFF",
     "finanzas":  "#FFD700",
     "canchas":   "#FF8C42",
@@ -23,7 +21,8 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
             self.after(0, self._volver_login)
             return
 
-        self.title("Panel Supervisor — Club Nahuel")
+        from db.database import get_club_nombre
+        self.title(f"Panel Supervisor — {get_club_nombre()}")
         self.update_idletasks()
         from ui.ventana_mixin import _get_work_area
         work_w, work_h = _get_work_area(self)
@@ -54,7 +53,7 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
     def _build_ui(self):
         usuario = SessionManager.get_usuario_actual()
 
-        ctk.CTkFrame(self, height=4, fg_color="#00D68F", corner_radius=0).pack(fill="x")
+        ctk.CTkFrame(self, height=4, fg_color="#00D4FF", corner_radius=0).pack(fill="x")
 
         # Header
         size = self._size
@@ -64,25 +63,18 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         hpad = {"full": (22, 18), "compact": (12, 10), "mini": (6, 6)}[size]
         inner_header.pack(pady=hpad)
 
-        logo_path = "assets/logoclubnahuel.png"
-        logo_size = {"full": (88, 72), "compact": (68, 56), "mini": (52, 42)}[size]
-        try:
-            logo_img = CTkImage(
-                light_image=Image.open(logo_path),
-                dark_image=Image.open(logo_path),
-                size=logo_size,
-            )
-            ctk.CTkLabel(inner_header, image=logo_img, text="").pack()
-        except Exception:
-            pass
+        icon_sz = {"full": 48, "compact": 38, "mini": 30}[size]
+        ctk.CTkLabel(inner_header, text="◈",
+            font=("Arial Black", icon_sz), text_color="#7C5CFF").pack()
 
         title_font = {"full": 32, "compact": 24, "mini": 20}[size]
         title_pady = {"full": (8, 0), "compact": (6, 0), "mini": (4, 0)}[size]
-        ctk.CTkLabel(inner_header, text="CLUB NAHUEL",
+        from db.database import get_club_nombre
+        ctk.CTkLabel(inner_header, text=get_club_nombre().upper(),
             font=("Arial Black", title_font, "bold"), text_color="#FFFFFF").pack(pady=title_pady)
         if size != "mini":
             ctk.CTkLabel(inner_header, text="P A N E L   S U P E R V I S O R",
-                font=("Arial", 10), text_color="#00D68F").pack(pady=(2, 0))
+                font=("Arial", 10), text_color="#00D4FF").pack(pady=(2, 0))
 
         chip = ctk.CTkFrame(inner_header, fg_color="#1A1A1A", corner_radius=20,
             border_width=1, border_color="#2A2A2A")
@@ -90,7 +82,7 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         chip.pack(pady=chip_pady)
         ctk.CTkLabel(chip,
             text=f"  {usuario.nombre}  ·  SUPERVISOR  ",
-            font=("Arial", 11, "bold"), text_color="#00D68F").pack(padx=10, pady=4)
+            font=("Arial", 11, "bold"), text_color="#00D4FF").pack(padx=10, pady=4)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
@@ -118,8 +110,15 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         dispon_wrap = ctk.CTkFrame(cards_frame, fg_color="transparent")
         dispon_wrap.grid(row=3, column=0, columnspan=2, padx=11, pady=(0, 4))
         self._crear_card_wide(dispon_wrap, "DISPONIBILIDAD",
-            "Vista en tiempo real de canchas y horarios", "◎", "#00D68F",
+            "Vista en tiempo real de canchas y horarios", "◎", "#00D4FF",
             self._abrir_disponibilidad)
+
+        # Card ANALÍTICA — fila completa (solo Enterprise)
+        analitica_wrap = ctk.CTkFrame(cards_frame, fg_color="transparent")
+        analitica_wrap.grid(row=4, column=0, columnspan=2, padx=11, pady=(0, 4))
+        self._crear_card_wide(analitica_wrap, "ANALÍTICA & REPORTES",
+            "Ocupación, ranking de clientes y proyección de ingresos ✦ Enterprise",
+            "◉", "#9D6EFF", self._abrir_analitica)
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
@@ -288,8 +287,43 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         GestionUsuariosWindow(self)
 
     def _abrir_finanzas(self):
+        from models.planes import tiene_funcion
+        plan = SessionManager.get_plan()
+        if not tiene_funcion(plan, "historial_financiero"):
+            self._mostrar_popup_plan("HISTORIAL FINANCIERO", "pro")
+            return
         from ui.financiero_window import FinancieroWindow
         FinancieroWindow(self)
+
+    def _mostrar_popup_plan(self, funcion: str, plan_requerido: str):
+        import customtkinter as ctk
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Función no disponible")
+        dlg.configure(fg_color="#0D0D0D")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        dlg.update_idletasks()
+        w, h = 400, 220
+        x = self.winfo_rootx() + (self.winfo_width()  - w) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - h) // 2
+        dlg.geometry(f"{w}x{h}+{x}+{y}")
+        ctk.CTkFrame(dlg, height=3, fg_color="#FFD700", corner_radius=0).pack(fill="x")
+        ctk.CTkLabel(dlg, text="⚠", font=("Arial Black", 32),
+                     text_color="#FFD700").pack(pady=(18, 4))
+        ctk.CTkLabel(dlg, text=f"{funcion}",
+                     font=("Arial Black", 14, "bold"),
+                     text_color="#FFFFFF").pack()
+        ctk.CTkLabel(dlg,
+                     text=f"Esta función requiere el plan {plan_requerido.upper()} o superior.\n"
+                           "Contactá al administrador para actualizar el plan.",
+                     font=("Arial", 11), text_color="#666666",
+                     wraplength=340, justify="center").pack(pady=(8, 16))
+        ctk.CTkButton(
+            dlg, text="Entendido", command=dlg.destroy,
+            fg_color="#FFD700", hover_color="#FFE84D",
+            text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
+            corner_radius=8, height=38, width=160,
+        ).pack()
 
     def _abrir_canchas(self):
         from ui.gestionar_canchas_window import GestionarCanchasWindow
@@ -298,6 +332,15 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
     def _abrir_disponibilidad(self):
         from ui.disponibilidad_window import DisponibilidadWindow
         DisponibilidadWindow(self)
+
+    def _abrir_analitica(self):
+        from models.planes import tiene_funcion
+        plan = SessionManager.get_plan()
+        if not tiene_funcion(plan, "analitica"):
+            self._mostrar_popup_plan("ANALÍTICA & REPORTES", "enterprise")
+            return
+        from ui.analytics_window import AnalyticsWindow
+        AnalyticsWindow(self)
 
     # ── Cierre ────────────────────────────────────────────────────────────────
 

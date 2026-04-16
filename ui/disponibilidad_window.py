@@ -12,13 +12,13 @@ from auth.session import SessionManager
 from models.canchas_service import listar_canchas_con_precio
 from models.reservas_service import listar_reservas_por_fecha
 
-_COLOR       = "#00D68F"
+_COLOR       = "#00D4FF"
 _SLOT_MINUTES = 30
 _HORA_INICIO  = 8
 _HORA_FIN     = 24
 
 _BG_LIBRE    = "#0F1F0F"
-_FG_LIBRE    = "#00D68F"
+_FG_LIBRE    = "#00D4FF"
 _BG_OCUPADO  = "#1A0A0A"
 _FG_OCUPADO  = "#FF5C5C"
 _BG_PASADO   = "#0D0D0D"
@@ -62,7 +62,8 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
             self.after(0, self.destroy)
             return
 
-        self.title("Disponibilidad en Tiempo Real — Club Nahuel")
+        from db.database import get_club_nombre
+        self.title(f"Disponibilidad en Tiempo Real — {get_club_nombre()}")
         self.update_idletasks()
         centrar_ventana(self, 1000, 680)
         self.transient(parent)
@@ -310,7 +311,7 @@ class DisponibilidadWindow(VentanaMixin, ctk.CTkToplevel):
         # ── Encabezado de canchas (en hdr_frame) ──────────────────────────────
         for col, (cid, cname, ctype, _p, _d) in enumerate(canchas):
             tipo_norm = ctype.lower().replace("á", "a").replace("ú", "u")
-            tipo_color = {"padel": "#00C4FF", "futbol": "#A3F843", "tenis": "#FF8C42"}.get(tipo_norm, "#888888")
+            tipo_color = {"padel": "#00C4FF", "futbol": "#7C5CFF", "tenis": "#FF8C42"}.get(tipo_norm, "#888888")
             tk.Label(self._hdr_frame,
                 text=f"{cname}\n{ctype.capitalize()}",
                 bg=_BG_HEADER, fg=tipo_color,

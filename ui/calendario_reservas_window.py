@@ -7,7 +7,7 @@ from auth.session import SessionManager
 from models.reservas_service import listar_reservas_por_fecha
 
 _COLOR_TIPO = {"pádel": "#00C4FF", "padel": "#00C4FF",
-               "fútbol": "#A3F843", "futbol": "#A3F843",
+               "fútbol": "#7C5CFF", "futbol": "#7C5CFF",
                "tenis": "#FF8C42"}
 
 
@@ -82,8 +82,8 @@ class CalendarioWindow(VentanaMixin, ctk.CTkToplevel):
         btn_wrap.pack(fill="x", padx=14, pady=(16, 0))
         ctk.CTkButton(btn_wrap, text="✦  NUEVA RESERVA",
             command=self._abrir_reserva,
-            fg_color="#A3F843", hover_color="#C5FF6B",
-            text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
+            fg_color="#7C5CFF", hover_color="#9D84FF",
+            text_color="#FFFFFF", font=("Arial Black", 11, "bold"),
             corner_radius=10, height=38).pack(fill="x")
 
         # Separador vertical

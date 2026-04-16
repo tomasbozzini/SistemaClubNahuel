@@ -151,8 +151,8 @@ class _AvisoInactividadDialog(ctk.CTkToplevel):
         ctk.CTkButton(
             self, text="Seguir conectado",
             command=self._continuar,
-            fg_color="#A3F843", hover_color="#C5FF6B",
-            text_color="#0D0D0D", font=("Arial Black", 12, "bold"),
+            fg_color="#7C5CFF", hover_color="#9D84FF",
+            text_color="#FFFFFF", font=("Arial Black", 12, "bold"),
             corner_radius=8, width=220, height=38,
         ).pack(pady=(4, 0))
 

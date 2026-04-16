@@ -11,7 +11,7 @@ from models.reservas_service import insertar_reserva, insertar_reservas_recurren
 
 
 _DURACION_LABEL = {"padel": "1 h 30 min", "futbol": "1 hora", "tenis": "1 hora"}
-_COLOR_TIPO     = {"padel": "#00C4FF", "futbol": "#A3F843", "tenis": "#FF8C42"}
+_COLOR_TIPO     = {"padel": "#00C4FF", "futbol": "#7C5CFF", "tenis": "#FF8C42"}
 
 
 class _AutocompletePopup(ctk.CTkToplevel):
@@ -80,7 +80,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self._debounce_id = None
 
         # Barra de acento
-        ctk.CTkFrame(self, height=4, fg_color="#A3F843", corner_radius=0).pack(fill="x")
+        ctk.CTkFrame(self, height=4, fg_color="#7C5CFF", corner_radius=0).pack(fill="x")
 
         # Header
         hdr = ctk.CTkFrame(self, fg_color="#111111", corner_radius=0)
@@ -89,7 +89,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             font=("Arial Black", 20, "bold"), text_color="#FFFFFF").pack(
             anchor="w", padx=28, pady=(16, 2))
         ctk.CTkLabel(hdr, text="Completá los datos del turno",
-            font=("Arial", 11), text_color="#A3F843").pack(anchor="w", padx=28, pady=(0, 14))
+            font=("Arial", 11), text_color="#7C5CFF").pack(anchor="w", padx=28, pady=(0, 14))
 
         ctk.CTkFrame(self, height=1, fg_color="#1C1C1C", corner_radius=0).pack(fill="x")
 
@@ -119,7 +119,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
 
         self.combo_cancha = ctk.CTkComboBox(card, values=["Cargando..."], width=432, height=40,
             fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", button_color="#252525", button_hover_color="#A3F843",
+            text_color="#FFFFFF", button_color="#252525", button_hover_color="#7C5CFF",
             dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF", corner_radius=10,
             command=self._actualizar_hint)
         self.combo_cancha.set("Cargando...")
@@ -141,10 +141,10 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkLabel(col_fecha, text="FECHA", **lbl_kw).pack(anchor="w", pady=(0, 4))
         self.date_entry = DateEntry(col_fecha, date_pattern="yyyy-mm-dd",
             background="#1A1A1A", foreground="white", borderwidth=0,
-            headersbackground="#0D0D0D", headersforeground="#A3F843",
-            selectbackground="#A3F843", selectforeground="black",
+            headersbackground="#0D0D0D", headersforeground="#7C5CFF",
+            selectbackground="#7C5CFF", selectforeground="white",
             normalbackground="#1A1A1A", normalforeground="white",
-            weekendbackground="#1A1A1A", weekendforeground="#A3F843",
+            weekendbackground="#1A1A1A", weekendforeground="#7C5CFF",
             font=("Arial", 11))
         self.date_entry.pack(anchor="w", ipady=6)
         self.date_entry.bind("<<DateEntrySelected>>", lambda e: self._cargar_slots_async())
@@ -155,7 +155,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self.combo_hora = ctk.CTkComboBox(col_hora,
             values=["— elegí cancha y fecha —"],
             height=40, fg_color="#1A1A1A", border_color="#252525", border_width=1,
-            text_color="#FFFFFF", button_color="#252525", button_hover_color="#A3F843",
+            text_color="#FFFFFF", button_color="#252525", button_hover_color="#7C5CFF",
             dropdown_fg_color="#1A1A1A", dropdown_text_color="#FFFFFF",
             corner_radius=10, state="readonly")
         self.combo_hora.set("— elegí cancha y fecha —")
@@ -173,8 +173,8 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             values=["Pendiente", "Seña", "Pagado"],
             width=432, height=36,
             fg_color="#1A1A1A",
-            selected_color="#A3F843",
-            selected_hover_color="#C5FF6B",
+            selected_color="#7C5CFF",
+            selected_hover_color="#9D84FF",
             unselected_color="#1A1A1A",
             unselected_hover_color="#252525",
             text_color="#FFFFFF",
@@ -196,7 +196,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             text="Repetir semanalmente",
             variable=self.var_recurrente,
             command=self._toggle_recurrencia,
-            fg_color="#A3F843", hover_color="#C5FF6B",
+            fg_color="#7C5CFF", hover_color="#9D84FF",
             checkmark_color="#0D0D0D",
             text_color="#888888", font=("Arial", 11))
         self.chk_recurrente.pack(side="left")
@@ -207,10 +207,10 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
             font=("Arial", 10, "bold"), text_color="#555555").pack(side="left", padx=(0, 8))
         self.date_hasta = DateEntry(self._hasta_frame, date_pattern="yyyy-mm-dd",
             background="#1A1A1A", foreground="white", borderwidth=0,
-            headersbackground="#0D0D0D", headersforeground="#A3F843",
-            selectbackground="#A3F843", selectforeground="black",
+            headersbackground="#0D0D0D", headersforeground="#7C5CFF",
+            selectbackground="#7C5CFF", selectforeground="white",
             normalbackground="#1A1A1A", normalforeground="white",
-            weekendbackground="#1A1A1A", weekendforeground="#A3F843",
+            weekendbackground="#1A1A1A", weekendforeground="#7C5CFF",
             font=("Arial", 11), state="disabled")
         self.date_hasta.pack(side="left", ipady=5)
         self._hasta_frame.pack_forget()
@@ -219,7 +219,7 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", pady=(16, 0))
         self.btn_guardar = ctk.CTkButton(card, text="GUARDAR RESERVA  →", command=self.guardar,
-            fg_color="#A3F843", hover_color="#C5FF6B", text_color="#0D0D0D",
+            fg_color="#7C5CFF", hover_color="#9D84FF", text_color="#FFFFFF",
             font=("Arial Black", 13, "bold"), corner_radius=0, width=520, height=46
         )
         self.btn_guardar.pack(fill="x")

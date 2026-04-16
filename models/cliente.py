@@ -1,5 +1,5 @@
 # models/cliente.py
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from db.database import Base
 
 
@@ -11,6 +11,7 @@ class Cliente(Base):
     telefono  = Column(String(30), nullable=True)
     email     = Column(String(150), nullable=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    club_id   = Column(Integer, ForeignKey("clubs.id"), nullable=False)
 
     def __repr__(self):
-        return f"<Cliente id={self.id} nombre={self.nombre}>"
+        return f"<Cliente id={self.id} nombre={self.nombre} club_id={self.club_id}>"
