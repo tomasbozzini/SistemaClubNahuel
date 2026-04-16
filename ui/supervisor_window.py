@@ -296,34 +296,8 @@ class SupervisorWindow(VentanaMixin, InactividadMixin, ctk.CTkToplevel):
         FinancieroWindow(self)
 
     def _mostrar_popup_plan(self, funcion: str, plan_requerido: str):
-        import customtkinter as ctk
-        dlg = ctk.CTkToplevel(self)
-        dlg.title("Función no disponible")
-        dlg.configure(fg_color="#0D0D0D")
-        dlg.resizable(False, False)
-        dlg.grab_set()
-        dlg.update_idletasks()
-        w, h = 400, 220
-        x = self.winfo_rootx() + (self.winfo_width()  - w) // 2
-        y = self.winfo_rooty() + (self.winfo_height() - h) // 2
-        dlg.geometry(f"{w}x{h}+{x}+{y}")
-        ctk.CTkFrame(dlg, height=3, fg_color="#FFD700", corner_radius=0).pack(fill="x")
-        ctk.CTkLabel(dlg, text="⚠", font=("Arial Black", 32),
-                     text_color="#FFD700").pack(pady=(18, 4))
-        ctk.CTkLabel(dlg, text=f"{funcion}",
-                     font=("Arial Black", 14, "bold"),
-                     text_color="#FFFFFF").pack()
-        ctk.CTkLabel(dlg,
-                     text=f"Esta función requiere el plan {plan_requerido.upper()} o superior.\n"
-                           "Contactá al administrador para actualizar el plan.",
-                     font=("Arial", 11), text_color="#666666",
-                     wraplength=340, justify="center").pack(pady=(8, 16))
-        ctk.CTkButton(
-            dlg, text="Entendido", command=dlg.destroy,
-            fg_color="#FFD700", hover_color="#FFE84D",
-            text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
-            corner_radius=8, height=38, width=160,
-        ).pack()
+        from ui.ventana_mixin import mostrar_popup_plan
+        mostrar_popup_plan(self, funcion, plan_requerido)
 
     def _abrir_canchas(self):
         from ui.gestionar_canchas_window import GestionarCanchasWindow

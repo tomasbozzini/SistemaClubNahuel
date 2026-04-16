@@ -46,6 +46,38 @@ _INACTIVIDAD_AVISO_S = 2  * 60
 _TICK_MS             = 10_000   # cada 10 segundos revisar
 
 
+def mostrar_popup_plan(parent, funcion: str, plan_requerido: str):
+    """Muestra un diálogo indicando que la función requiere un plan superior."""
+    import customtkinter as ctk
+    dlg = ctk.CTkToplevel(parent)
+    dlg.title("Función no disponible")
+    dlg.configure(fg_color="#0D0D0D")
+    dlg.resizable(False, False)
+    dlg.grab_set()
+    dlg.update_idletasks()
+    w, h = 400, 220
+    x = parent.winfo_rootx() + (parent.winfo_width()  - w) // 2
+    y = parent.winfo_rooty() + (parent.winfo_height() - h) // 2
+    dlg.geometry(f"{w}x{h}+{x}+{y}")
+    ctk.CTkFrame(dlg, height=3, fg_color="#FFD700", corner_radius=0).pack(fill="x")
+    ctk.CTkLabel(dlg, text="⚠", font=("Arial Black", 32),
+                 text_color="#FFD700").pack(pady=(18, 4))
+    ctk.CTkLabel(dlg, text=funcion,
+                 font=("Arial Black", 14, "bold"),
+                 text_color="#FFFFFF").pack()
+    ctk.CTkLabel(dlg,
+                 text=f"Esta función requiere el plan {plan_requerido.upper()} o superior.\n"
+                       "Contactá al administrador para actualizar el plan.",
+                 font=("Arial", 11), text_color="#666666",
+                 wraplength=340, justify="center").pack(pady=(8, 16))
+    ctk.CTkButton(
+        dlg, text="Entendido", command=dlg.destroy,
+        fg_color="#FFD700", hover_color="#FFE84D",
+        text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
+        corner_radius=8, height=38, width=160,
+    ).pack()
+
+
 class VentanaMixin:
     """Asegura que la ventana aparezca al frente al abrirse."""
 

@@ -22,6 +22,7 @@ _ORANGE  = "#FF8C42"
 _NAV_ITEMS = [
     ("◉", "Dashboard"),
     ("◈", "Clubes"),
+    ("◎", "Resumen"),
     ("✦", "Supervisores"),
     ("$", "Finanzas"),
     ("≡", "Logs"),
@@ -185,12 +186,13 @@ class SuperAdminWindow(VentanaMixin, ctk.CTkToplevel):
             w.destroy()
 
         render = {
-            "Dashboard":   self._render_dashboard,
-            "Clubes":      self._render_clubes,
+            "Dashboard":    self._render_dashboard,
+            "Clubes":       self._render_clubes,
+            "Resumen":      self._render_resumen,
             "Supervisores": self._render_supervisores,
-            "Finanzas":    self._render_finanzas,
-            "Logs":        self._render_logs,
-            "Operaciones": self._render_operaciones,
+            "Finanzas":     self._render_finanzas,
+            "Logs":         self._render_logs,
+            "Operaciones":  self._render_operaciones,
         }.get(nombre)
         if render:
             render()
@@ -740,20 +742,317 @@ class SuperAdminWindow(VentanaMixin, ctk.CTkToplevel):
         except Exception:
             pass
 
-        sf = self._scrollable(height=220)
-        cols = [("ID", 40), ("Nombre", 180), ("Email", 200),
-                ("Club", 160), ("Activo", 60)]
+        sf = self._scrollable(height=260)
+        cols = [("ID", 35), ("Nombre", 155), ("Email", 170),
+                ("Club", 135), ("Activo", 50), ("Acciones", 145)]
         self._table_header(sf, cols)
+
         for i, r in enumerate(rows):
-            vals = [
-                (r["id"],          40),
-                (r["nombre"],      180),
-                (r["email"],       200),
-                (r["club_nombre"] or "-", 160),
-                ("Sí" if r["activo"] else "No", 60),
-            ]
+            bg  = "#181818" if i % 2 else _CARD
+            row = ctk.CTkFrame(sf, fg_color=bg, corner_radius=6,
+                               border_width=1, border_color=_BORDER)
+            row.pack(fill="x", pady=1)
+
             color = _TEAL if r["activo"] else "#555555"
-            self._table_row(sf, vals, color=color, alt=i % 2 == 1)
+            for texto, w in [
+                (r["id"],                        35),
+                (r["nombre"],                    155),
+                (r["email"],                     170),
+                (r["club_nombre"] or "-",        135),
+                ("Sí" if r["activo"] else "No",  50),
+            ]:
+                ctk.CTkLabel(row, text=str(texto), width=w,
+                             font=("Arial", 10), text_color=color,
+                             anchor="w").pack(side="left", padx=(10, 4), pady=6)
+
+            acc = ctk.CTkFrame(row, fg_color="transparent")
+            acc.pack(side="left", padx=4)
+            uid = r["id"]
+            ctk.CTkButton(
+                acc, text="Editar", width=58, height=26,
+                fg_color=_CARD, hover_color="#252525",
+                text_color=_ACCENT, border_color=_ACCENT, border_width=1,
+                corner_radius=6, font=("Arial", 9, "bold"),
+                command=lambda uid=uid, rd=dict(r): self._dialog_editar_supervisor(uid, rd),
+            ).pack(side="left", padx=2)
+            ctk.CTkButton(
+                acc, text="Eliminar", width=68, height=26,
+                fg_color=_CARD, hover_color="#1A0000",
+                text_color=_RED, border_color=_RED, border_width=1,
+                corner_radius=6, font=("Arial", 9, "bold"),
+                command=lambda uid=uid, n=r["nombre"]: self._confirmar_eliminar_supervisor(uid, n),
+            ).pack(side="left", padx=2)
+
+    def _dialog_editar_supervisor(self, usuario_id: int, datos: dict):
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Editar supervisor")
+        dlg.configure(fg_color=_BG)
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        dlg.update_idletasks()
+        w, h = 440, 460
+        x = self.winfo_rootx() + (self.winfo_width()  - w) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - h) // 2
+        dlg.geometry(f"{w}x{h}+{x}+{y}")
+
+        ctk.CTkFrame(dlg, height=3, fg_color=_ACCENT2, corner_radius=0).pack(fill="x")
+        ctk.CTkLabel(dlg, text="Editar Supervisor",
+                     font=("Arial Black", 16, "bold"),
+                     text_color="#FFFFFF").pack(pady=(18, 4))
+        ctk.CTkFrame(dlg, height=1, fg_color="#1C1C1C",
+                     corner_radius=0).pack(fill="x", padx=24, pady=(8, 16))
+
+        sf = ctk.CTkScrollableFrame(dlg, fg_color="transparent")
+        sf.pack(fill="both", expand=True, padx=24, pady=(0, 8))
+
+        ent_kw = {
+            "fg_color": "#141414", "border_color": "#252525", "border_width": 1,
+            "text_color": "#FFFFFF", "corner_radius": 8, "height": 40,
+        }
+        lbl_kw = {"font": ("Arial", 10, "bold"), "text_color": "#555555", "anchor": "w"}
+
+        def campo(label, default="", show=""):
+            ctk.CTkLabel(sf, text=label, **lbl_kw).pack(anchor="w", pady=(8, 2))
+            kw = dict(ent_kw)
+            if show:
+                kw["show"] = show
+            e = ctk.CTkEntry(sf, **kw)
+            e.pack(fill="x")
+            if default:
+                e.insert(0, str(default))
+            return e
+
+        e_nombre = campo("Nombre completo", datos.get("nombre", ""))
+        e_email  = campo("Email / Usuario",  datos.get("email", ""))
+        e_pass   = campo("Nueva contraseña (dejar vacío para no cambiar)", show="•")
+
+        ctk.CTkLabel(sf, text="Club", **lbl_kw).pack(anchor="w", pady=(8, 2))
+        clubs_var = ctk.StringVar(value=datos.get("club_nombre") or "Cargando...")
+        clubs_map = {}
+        club_menu = ctk.CTkOptionMenu(
+            sf, variable=clubs_var,
+            fg_color="#141414", button_color="#1C1C1C",
+            button_hover_color="#2A2A2A", text_color="#FFFFFF",
+            dropdown_fg_color="#111111", dropdown_hover_color="#1C1C1C",
+        )
+        club_menu.pack(fill="x", pady=(0, 4))
+
+        def _cargar_clubs():
+            try:
+                from models.clubs_service import listar_todos_los_clubs
+                cs = [c for c in listar_todos_los_clubs() if c["activo"]]
+                for c in cs:
+                    clubs_map[c["nombre"]] = c["id"]
+                opciones = [c["nombre"] for c in cs] or ["(sin clubes)"]
+                current  = datos.get("club_nombre") or opciones[0]
+                self.after(0, lambda: (
+                    club_menu.configure(values=opciones),
+                    clubs_var.set(current if current in opciones else opciones[0]),
+                ))
+            except Exception:
+                self.after(0, lambda: clubs_var.set("Error"))
+
+        threading.Thread(target=_cargar_clubs, daemon=True).start()
+
+        lbl_err = ctk.CTkLabel(sf, text="", font=("Arial", 10),
+                               text_color=_RED, wraplength=380)
+        lbl_err.pack(pady=(8, 0))
+
+        def _guardar():
+            nombre  = e_nombre.get().strip()
+            email   = e_email.get().strip()
+            pwd     = e_pass.get()
+            club_n  = clubs_var.get()
+            club_id = clubs_map.get(club_n)
+
+            if not nombre or not email:
+                lbl_err.configure(text="Nombre y email son obligatorios.")
+                return
+
+            btn_ok.configure(state="disabled", text="Guardando...")
+
+            def _worker():
+                try:
+                    from models.usuarios_service import actualizar_supervisor
+                    actualizar_supervisor(usuario_id, nombre, email, pwd, club_id)
+                    self.after(0, lambda: (
+                        dlg.destroy(),
+                        self._render_supervisores(),
+                        self._mostrar_toast(f"Supervisor '{nombre}' actualizado."),
+                    ))
+                except Exception as ex:
+                    self.after(0, lambda: (
+                        lbl_err.configure(text=str(ex)),
+                        btn_ok.configure(state="normal", text="Guardar"),
+                    ))
+
+            threading.Thread(target=_worker, daemon=True).start()
+
+        btn_row = ctk.CTkFrame(dlg, fg_color="transparent")
+        btn_row.pack(padx=24, pady=12, fill="x")
+        ctk.CTkButton(
+            btn_row, text="Cancelar", command=dlg.destroy,
+            fg_color=_CARD, hover_color="#1C1C1C",
+            text_color="#888888", border_color=_BORDER, border_width=1,
+            corner_radius=8, height=40,
+        ).pack(side="left", expand=True, fill="x", padx=(0, 6))
+        btn_ok = ctk.CTkButton(
+            btn_row, text="Guardar", command=_guardar,
+            fg_color=_ACCENT2, hover_color="#00F0FF",
+            text_color="#0D0D0D", font=("Arial Black", 11, "bold"),
+            corner_radius=8, height=40,
+        )
+        btn_ok.pack(side="left", expand=True, fill="x")
+
+    def _confirmar_eliminar_supervisor(self, usuario_id: int, nombre: str):
+        from tkinter import messagebox
+        ok = messagebox.askyesno(
+            "Confirmar eliminación",
+            f"¿Eliminar al supervisor '{nombre}'?\nEsta acción no se puede deshacer.",
+            parent=self,
+        )
+        if not ok:
+            return
+
+        def _worker():
+            try:
+                from models.usuarios_service import eliminar_supervisor
+                eliminar_supervisor(usuario_id)
+                self.after(0, lambda: (
+                    self._render_supervisores(),
+                    self._mostrar_toast(f"Supervisor '{nombre}' eliminado.", _RED),
+                ))
+            except Exception as e:
+                self.after(0, lambda: self._mostrar_toast(str(e), _RED))
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    # ── SECCIÓN 3b — RESUMEN CLUBES ──────────────────────────────────────────
+
+    def _render_resumen(self):
+        self._seccion_header("Resumen por Club",
+                             "Cantidad de supervisores y admins asignados a cada club")
+
+        btn_row = ctk.CTkFrame(self._content_frame, fg_color="transparent")
+        btn_row.pack(fill="x", padx=28, pady=(0, 12))
+        ctk.CTkButton(
+            btn_row, text="↺ Actualizar",
+            command=self._render_resumen,
+            fg_color=_CARD, hover_color="#1C1C1C",
+            text_color="#888888", border_color=_BORDER, border_width=1,
+            corner_radius=8, height=36, width=120,
+        ).pack(side="left")
+
+        lbl_carga = ctk.CTkLabel(self._content_frame, text="Cargando...",
+                                 font=("Arial", 12), text_color="#444444")
+        lbl_carga.pack(pady=20)
+
+        def _cargar():
+            try:
+                from collections import defaultdict
+                from sqlalchemy import text as sa_text
+                from db.database import engine
+                with engine.connect() as conn:
+                    clubs_rows = conn.execute(sa_text("""
+                        SELECT c.id, c.nombre, c.activo,
+                               COUNT(DISTINCT CASE WHEN u.rol='supervisor' THEN u.id END) AS n_supervisores,
+                               COUNT(DISTINCT CASE WHEN u.rol='admin' THEN u.id END) AS n_admins
+                        FROM clubs c
+                        LEFT JOIN usuarios u ON u.club_id = c.id
+                        GROUP BY c.id, c.nombre, c.activo
+                        ORDER BY c.nombre
+                    """)).fetchall()
+                    clubs_data = [dict(r._mapping) for r in clubs_rows]
+
+                    admins_rows = conn.execute(sa_text("""
+                        SELECT u.club_id, u.nombre, u.email, u.activo
+                        FROM usuarios u
+                        WHERE u.rol = 'admin'
+                        ORDER BY u.nombre
+                    """)).fetchall()
+                    admins_data = [dict(r._mapping) for r in admins_rows]
+
+                admins_by_club = defaultdict(list)
+                for a in admins_data:
+                    admins_by_club[a["club_id"]].append(a)
+
+                self.after(0, lambda: self._render_resumen_datos(
+                    clubs_data, admins_by_club, lbl_carga))
+            except Exception as e:
+                self.after(0, lambda: lbl_carga.configure(
+                    text=f"Error: {e}", text_color=_RED))
+
+        threading.Thread(target=_cargar, daemon=True).start()
+
+    def _render_resumen_datos(self, clubs, admins_by_club, placeholder):
+        if not self._content_frame.winfo_exists():
+            return
+        try:
+            placeholder.destroy()
+        except Exception:
+            pass
+
+        sf = self._scrollable()
+
+        for club in clubs:
+            club_id = club["id"]
+            activo  = club["activo"]
+            n_sup   = club["n_supervisores"]
+            n_adm   = club["n_admins"]
+            admins  = admins_by_club.get(club_id, [])
+
+            card = ctk.CTkFrame(sf, fg_color=_CARD, corner_radius=12,
+                                border_width=1, border_color=_BORDER)
+            card.pack(fill="x", pady=5)
+
+            # Cabecera
+            hdr = ctk.CTkFrame(card, fg_color="transparent")
+            hdr.pack(fill="x", padx=18, pady=(12, 8))
+
+            left = ctk.CTkFrame(hdr, fg_color="transparent")
+            left.pack(side="left", fill="x", expand=True)
+            estado_color = _TEAL if activo else "#555555"
+            ctk.CTkLabel(left, text=club["nombre"],
+                         font=("Arial Black", 13, "bold"),
+                         text_color="#FFFFFF").pack(anchor="w")
+            ctk.CTkLabel(left, text="Activo" if activo else "Inactivo",
+                         font=("Arial", 9), text_color=estado_color).pack(anchor="w")
+
+            # Contadores
+            right = ctk.CTkFrame(hdr, fg_color="transparent")
+            right.pack(side="right")
+            for val, lbl_txt, color in [
+                (n_sup, "supervisores", _ACCENT2),
+                (n_adm, "admins",       _ACCENT),
+            ]:
+                chip = ctk.CTkFrame(right, fg_color="#1A1A1A", corner_radius=8,
+                                    border_width=1, border_color="#2A2A2A")
+                chip.pack(side="left", padx=4)
+                ctk.CTkLabel(chip, text=str(val),
+                             font=("Arial Black", 20, "bold"),
+                             text_color=color).pack(padx=18, pady=(6, 0))
+                ctk.CTkLabel(chip, text=lbl_txt,
+                             font=("Arial", 9), text_color="#444444").pack(padx=18, pady=(0, 6))
+
+            # Lista de admins
+            ctk.CTkFrame(card, height=1, fg_color="#1C1C1C",
+                         corner_radius=0).pack(fill="x", padx=18, pady=(0, 6))
+            adm_frame = ctk.CTkFrame(card, fg_color="transparent")
+            adm_frame.pack(fill="x", padx=18, pady=(0, 12))
+
+            if admins:
+                ctk.CTkLabel(adm_frame, text="Admins:",
+                             font=("Arial", 9, "bold"),
+                             text_color="#555555").pack(anchor="w", pady=(0, 2))
+                for a in admins:
+                    color_a = "#CCCCCC" if a["activo"] else "#444444"
+                    ctk.CTkLabel(adm_frame,
+                                 text=f"  • {a['nombre']}  ({a['email']})",
+                                 font=("Arial", 10), text_color=color_a,
+                                 anchor="w").pack(anchor="w")
+            else:
+                ctk.CTkLabel(adm_frame, text="Sin admins asignados",
+                             font=("Arial", 9), text_color="#333333").pack(anchor="w")
 
     # ── SECCIÓN 4 — FINANZAS ──────────────────────────────────────────────────
 

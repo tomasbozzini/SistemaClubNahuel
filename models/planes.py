@@ -25,8 +25,8 @@ PLANES = {
         "nombre": "Pro",
         "precio_implementacion": 1200,
         "precio_mensual": 60,
-        "max_canchas": 8,
-        "max_usuarios": 5,
+        "max_canchas": 7,
+        "max_usuarios": 4,
         "funciones": {
             "reservas":             True,
             "calendario":           True,
@@ -42,7 +42,7 @@ PLANES = {
     },
     "enterprise": {
         "nombre": "Enterprise",
-        "precio_implementacion": 1800,
+        "precio_implementacion": 1500,
         "precio_mensual": 90,
         "max_canchas": None,
         "max_usuarios": None,

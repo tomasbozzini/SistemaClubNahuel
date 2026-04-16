@@ -310,9 +310,19 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
         return next((f for f in self._filas if f[0] == reserva_id), None)
 
     def _exportar_excel(self):
+        from models.planes import tiene_funcion
+        if not tiene_funcion(SessionManager.get_plan(), "exportar_excel"):
+            from ui.ventana_mixin import mostrar_popup_plan
+            mostrar_popup_plan(self, "EXPORTAR EXCEL", "pro")
+            return
         exportar_excel_reservas(getattr(self, "_filas", []))
 
     def _exportar_pdf(self):
+        from models.planes import tiene_funcion
+        if not tiene_funcion(SessionManager.get_plan(), "exportar_pdf"):
+            from ui.ventana_mixin import mostrar_popup_plan
+            mostrar_popup_plan(self, "EXPORTAR PDF", "pro")
+            return
         exportar_pdf_reservas(getattr(self, "_filas", []))
 
     # ── Pago ─────────────────────────────────────────────────────────────────
@@ -380,6 +390,11 @@ class VerReservasWindow(VentanaMixin, ctk.CTkToplevel):
     # ── WhatsApp ──────────────────────────────────────────────────────────────
 
     def _whatsapp(self, tipo: str):
+        from models.planes import tiene_funcion
+        if not tiene_funcion(SessionManager.get_plan(), "whatsapp"):
+            from ui.ventana_mixin import mostrar_popup_plan
+            mostrar_popup_plan(self, "MENSAJES WHATSAPP", "pro")
+            return
         fila = self._fila_seleccionada()
         if not fila:
             messagebox.showwarning("Atención", "Seleccioná una reserva.")

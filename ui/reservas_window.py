@@ -185,6 +185,9 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         self._pago_seg.pack(padx=28)
 
         # ── Recurrencia ───────────────────────────────────────────────────────
+        from models.planes import tiene_funcion
+        _plan_recurrente = tiene_funcion(SessionManager.get_plan(), "reservas_recurrentes")
+
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(
             fill="x", padx=0, pady=(18, 0))
 
@@ -192,28 +195,33 @@ class ReservasWindow(VentanaMixin, ctk.CTkToplevel):
         rec_row.pack(padx=28, pady=(12, 0), fill="x")
 
         self.var_recurrente = ctk.BooleanVar(value=False)
-        self.chk_recurrente = ctk.CTkCheckBox(rec_row,
-            text="Repetir semanalmente",
-            variable=self.var_recurrente,
-            command=self._toggle_recurrencia,
-            fg_color="#7C5CFF", hover_color="#9D84FF",
-            checkmark_color="#0D0D0D",
-            text_color="#888888", font=("Arial", 11))
-        self.chk_recurrente.pack(side="left")
+        if _plan_recurrente:
+            self.chk_recurrente = ctk.CTkCheckBox(rec_row,
+                text="Repetir semanalmente",
+                variable=self.var_recurrente,
+                command=self._toggle_recurrencia,
+                fg_color="#7C5CFF", hover_color="#9D84FF",
+                checkmark_color="#0D0D0D",
+                text_color="#888888", font=("Arial", 11))
+            self.chk_recurrente.pack(side="left")
 
-        self._hasta_frame = ctk.CTkFrame(rec_row, fg_color="transparent")
-        self._hasta_frame.pack(side="left", padx=(20, 0))
-        ctk.CTkLabel(self._hasta_frame, text="HASTA:",
-            font=("Arial", 10, "bold"), text_color="#555555").pack(side="left", padx=(0, 8))
-        self.date_hasta = DateEntry(self._hasta_frame, date_pattern="yyyy-mm-dd",
-            background="#1A1A1A", foreground="white", borderwidth=0,
-            headersbackground="#0D0D0D", headersforeground="#7C5CFF",
-            selectbackground="#7C5CFF", selectforeground="white",
-            normalbackground="#1A1A1A", normalforeground="white",
-            weekendbackground="#1A1A1A", weekendforeground="#7C5CFF",
-            font=("Arial", 11), state="disabled")
-        self.date_hasta.pack(side="left", ipady=5)
-        self._hasta_frame.pack_forget()
+            self._hasta_frame = ctk.CTkFrame(rec_row, fg_color="transparent")
+            self._hasta_frame.pack(side="left", padx=(20, 0))
+            ctk.CTkLabel(self._hasta_frame, text="HASTA:",
+                font=("Arial", 10, "bold"), text_color="#555555").pack(side="left", padx=(0, 8))
+            self.date_hasta = DateEntry(self._hasta_frame, date_pattern="yyyy-mm-dd",
+                background="#1A1A1A", foreground="white", borderwidth=0,
+                headersbackground="#0D0D0D", headersforeground="#7C5CFF",
+                selectbackground="#7C5CFF", selectforeground="white",
+                normalbackground="#1A1A1A", normalforeground="white",
+                weekendbackground="#1A1A1A", weekendforeground="#7C5CFF",
+                font=("Arial", 11), state="disabled")
+            self.date_hasta.pack(side="left", ipady=5)
+            self._hasta_frame.pack_forget()
+        else:
+            ctk.CTkLabel(rec_row,
+                text="↺  Reservas recurrentes — Plan PRO o superior",
+                font=("Arial", 10), text_color="#333333").pack(side="left")
 
         # Botón guardar
         ctk.CTkFrame(card, height=1, fg_color="#1C1C1C", corner_radius=0).pack(

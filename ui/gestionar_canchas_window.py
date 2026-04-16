@@ -457,7 +457,6 @@ class GestionarCanchasWindow(VentanaMixin, ctk.CTkToplevel):
         try:
             from models.planes import get_limite_canchas
             from models.canchas_service import listar_canchas
-            from auth.session import SessionManager
             limite = get_limite_canchas(SessionManager.get_plan())
             if limite is not None:
                 actuales = len(listar_canchas())

@@ -368,6 +368,11 @@ class MainWindow(InactividadMixin, ctk.CTkToplevel):
         CalendarioWindow(self)
 
     def abrir_finanzas(self):
+        from models.planes import tiene_funcion
+        if not tiene_funcion(SessionManager.get_plan(), "historial_financiero"):
+            from ui.ventana_mixin import mostrar_popup_plan
+            mostrar_popup_plan(self, "HISTORIAL FINANCIERO", "pro")
+            return
         from ui.financiero_window import FinancieroWindow
         FinancieroWindow(self)
 

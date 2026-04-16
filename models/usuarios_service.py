@@ -24,6 +24,21 @@ def crear_admin(nombre: str, email: str, password: str) -> Usuario:
     nombre  = nombre.strip()
     email   = email.strip().lower()
     with get_connection() as session:
+        # Verificar límite de admins del plan
+        from models.planes import get_limite_usuarios
+        from models.clubs_service import get_club
+        club = get_club(club_id) if club_id else None
+        plan  = club.get("plan", "basic") if club else "basic"
+        limite = get_limite_usuarios(plan)
+        if limite is not None:
+            actuales = session.query(Usuario).filter(
+                Usuario.rol == "admin", Usuario.club_id == club_id
+            ).count()
+            if actuales >= limite:
+                raise ValueError(
+                    f"Tu plan {plan.capitalize()} permite hasta {limite} admin(s). "
+                    "Contactá al administrador para actualizar el plan."
+                )
         if session.query(Usuario).filter_by(nombre=nombre).first():
             raise ValueError(f"Ya existe un usuario con el nombre '{nombre}'.")
         if session.query(Usuario).filter_by(email=email).first():
@@ -99,6 +114,47 @@ def eliminar_admin(usuario_id: int):
         if club_id is not None:
             q = q.filter(Usuario.club_id == club_id)
         u = q.first()
+        if u:
+            session.delete(u)
+            session.commit()
+
+
+def actualizar_supervisor(usuario_id: int, nombre: str, email: str,
+                          nueva_password: str = "", club_id: int = None):
+    """Actualiza datos de un supervisor (uso superadmin)."""
+    nombre = nombre.strip()
+    email  = email.strip().lower()
+    with get_connection() as session:
+        u = session.query(Usuario).filter(
+            Usuario.id == usuario_id, Usuario.rol == "supervisor"
+        ).first()
+        if not u:
+            raise ValueError("Supervisor no encontrado.")
+        dup_nombre = session.query(Usuario).filter(
+            Usuario.nombre == nombre, Usuario.id != usuario_id
+        ).first()
+        if dup_nombre:
+            raise ValueError(f"Ya existe un usuario con el nombre '{nombre}'.")
+        dup_email = session.query(Usuario).filter(
+            Usuario.email == email, Usuario.id != usuario_id
+        ).first()
+        if dup_email:
+            raise ValueError("Ya existe un usuario con ese email.")
+        u.nombre = nombre
+        u.email  = email
+        if nueva_password.strip():
+            u.password_hash = hashear_password(nueva_password)
+        if club_id is not None:
+            u.club_id = club_id
+        session.commit()
+
+
+def eliminar_supervisor(usuario_id: int):
+    """Elimina un usuario supervisor."""
+    with get_connection() as session:
+        u = session.query(Usuario).filter(
+            Usuario.id == usuario_id, Usuario.rol == "supervisor"
+        ).first()
         if u:
             session.delete(u)
             session.commit()
